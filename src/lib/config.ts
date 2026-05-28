@@ -12,6 +12,8 @@ import type { AppConfig } from '@/types';
 export function getServerConfig() {
   return {
     n8nWebhookUrl: process.env.N8N_WEBHOOK_URL || '',
+    n8nClientesWebhookUrl: process.env.N8N_CLIENTES_WEBHOOK_URL || '',
+    n8nFacturasIngresoWebhookUrl: process.env.N8N_FACTURAS_INGRESO_WEBHOOK_URL || '',
     n8nApiKey: process.env.N8N_API_KEY || '',
     maxPdfMb: parseInt(process.env.MAX_PDF_MB || '20', 10),
     appName: process.env.APP_NAME || 'Facturas SENATEX',

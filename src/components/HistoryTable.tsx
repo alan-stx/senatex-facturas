@@ -53,6 +53,7 @@ export default function HistoryTable({ entries }: HistoryTableProps) {
             <th>Archivo</th>
             <th>Usuario</th>
             <th>Sucursal</th>
+            <th>Método</th>
             <th>Estado</th>
             <th>Ítems</th>
             <th>Mensaje</th>
@@ -72,6 +73,7 @@ export default function HistoryTable({ entries }: HistoryTableProps) {
               </td>
               <td>{entry.uploaded_by}</td>
               <td>{entry.sucursal_usuario}</td>
+              <td>{entry.metodo_pago ?? '—'}</td>
               <td>
                 <StatusBadge status={entry.status} />
               </td>

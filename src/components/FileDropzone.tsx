@@ -1,6 +1,17 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
+import {
+  PAYMENT_METHOD_OPTIONS,
+  INCOME_STATUS_OPTIONS,
+  INVOICE_LEVEL_OPTIONS,
+} from '@/types';
+
+import type {
+  PaymentMethod,
+  IncomeStatus,
+  InvoiceLevel,
+} from '@/types';
 
 interface FileDropzoneProps {
   files: File[];
@@ -9,6 +20,20 @@ interface FileDropzoneProps {
   onClearAll: () => void;
   maxMb: number;
   disabled?: boolean;
+
+  paymentMethods: Record<string, PaymentMethod>;
+  incomeStatuses: Record<string, IncomeStatus>;
+  estimatedIncomeDates: Record<string, string>;
+  invoiceLevels: Record<string, InvoiceLevel>;
+
+  onPaymentMethodChange: (file: File, metodoPago: PaymentMethod) => void;
+  onIncomeStatusChange: (file: File, estadoIngreso: IncomeStatus) => void;
+  onEstimatedIncomeDateChange: (file: File, value: string) => void;
+  onInvoiceLevelChange: (file: File, nivel: InvoiceLevel) => void;
+}
+
+function getFileKey(file: File): string {
+  return `${file.name}__${file.size}__${file.lastModified}`;
 }
 
 export default function FileDropzone({
@@ -18,6 +43,14 @@ export default function FileDropzone({
   onClearAll,
   maxMb,
   disabled = false,
+  paymentMethods,
+  incomeStatuses,
+  estimatedIncomeDates,
+  invoiceLevels,
+  onPaymentMethodChange,
+  onIncomeStatusChange,
+  onEstimatedIncomeDateChange,
+  onInvoiceLevelChange,
 }: FileDropzoneProps) {
   const [isDragActive, setIsDragActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,8 +61,6 @@ export default function FileDropzone({
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
-
-  const getFileKey = (f: File) => `${f.name}__${f.size}__${f.lastModified}`;
 
   const processFiles = useCallback(
     (incomingFiles: FileList | File[]) => {
@@ -203,40 +234,116 @@ export default function FileDropzone({
             </button>
           </div>
 
-          <div style={{ display: 'grid', gap: 8 }}>
-            {files.map((file, index) => (
-              <div
-                key={`${file.name}-${file.size}-${file.lastModified}`}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 12,
-                  padding: '10px 12px',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  borderRadius: 10,
-                }}
-              >
-                <div style={{ minWidth: 0 }}>
-                  <div className="file-info__name" title={file.name}>
-                    {index + 1}. {file.name}
-                  </div>
-                  <div className="file-info__size">{formatSize(file.size)}</div>
-                </div>
+          <div className="file-queue-list">
+            {files.map((file, index) => {
+              const fileKey = getFileKey(file);
 
-                <button
-                  className="file-info__remove"
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onFileRemove(index);
-                  }}
-                  disabled={disabled}
+              const selectedPaymentMethod =
+                paymentMethods[fileKey] || 'Efectivo';
+
+              const selectedIncomeStatus =
+                incomeStatuses[fileKey] || 'Ya ingresado';
+
+              const selectedEstimatedDate =
+                estimatedIncomeDates[fileKey] || '';
+
+              const selectedInvoiceLevel =
+                invoiceLevels[fileKey] || 'Venta en tienda';
+
+              return (
+                <div
+                  key={`${file.name}-${file.size}-${file.lastModified}`}
+                  className="file-queue-item"
                 >
-                  Quitar
-                </button>
-              </div>
-            ))}
+                  <div className="file-queue-item__details">
+                    <div className="file-info__name" title={file.name}>
+                      {index + 1}. {file.name}
+                    </div>
+                    <div className="file-info__size">{formatSize(file.size)}</div>
+                  </div>
+
+                  <div className="file-settings-grid">
+                    <label className="file-setting">
+                      <span>Método de pago</span>
+                      <select
+                        value={selectedPaymentMethod}
+                        onChange={(e) =>
+                          onPaymentMethodChange(file, e.target.value as PaymentMethod)
+                        }
+                        disabled={disabled}
+                      >
+                        {PAYMENT_METHOD_OPTIONS.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="file-setting">
+                      <span>Estado de ingreso</span>
+                      <select
+                        value={selectedIncomeStatus}
+                        onChange={(e) =>
+                          onIncomeStatusChange(file, e.target.value as IncomeStatus)
+                        }
+                        disabled={disabled}
+                      >
+                        {INCOME_STATUS_OPTIONS.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    {selectedIncomeStatus === 'Cuenta por cobrar' && (
+                      <label className="file-setting">
+                        <span>Fecha estimada</span>
+                        <input
+                          type="date"
+                          value={selectedEstimatedDate}
+                          onChange={(e) =>
+                            onEstimatedIncomeDateChange(file, e.target.value)
+                          }
+                          disabled={disabled}
+                          required
+                        />
+                      </label>
+                    )}
+
+                    <label className="file-setting">
+                      <span>Nivel</span>
+                      <select
+                        value={selectedInvoiceLevel}
+                        onChange={(e) =>
+                          onInvoiceLevelChange(file, e.target.value as InvoiceLevel)
+                        }
+                        disabled={disabled}
+                      >
+                        {INVOICE_LEVEL_OPTIONS.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+
+                  <button
+                    className="file-info__remove"
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onFileRemove(index);
+                    }}
+                    disabled={disabled}
+                  >
+                    Quitar
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

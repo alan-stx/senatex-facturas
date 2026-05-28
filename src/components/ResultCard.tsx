@@ -115,6 +115,13 @@ export default function ResultCard({ result, onReset }: ResultCardProps) {
             </div>
           )}
 
+          {invoice.metodo_pago && (
+            <div className="result-detail">
+              <div className="result-detail__label">Método de pago</div>
+              <div className="result-detail__value">{invoice.metodo_pago}</div>
+            </div>
+          )}
+
           {invoice.invoice_uid && (
             <div className="result-detail" style={{ gridColumn: '1 / -1' }}>
               <div className="result-detail__label">ID Único</div>

@@ -1,17 +1,20 @@
-/**
- * API Route: POST /api/upload-factura
- * 
- * Recibe un PDF y metadatos del frontend,
- * valida el archivo, genera hash SHA-256,
- * y reenvía todo al webhook de n8n.
- * 
- * El frontend NUNCA habla directamente con n8n.
- */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createHash } from 'crypto';
 import { getServerConfig } from '@/lib/config';
-import type { UploadResponse } from '@/types';
+import {
+  PAYMENT_METHOD_OPTIONS,
+  INCOME_STATUS_OPTIONS,
+  INVOICE_LEVEL_OPTIONS,
+} from '@/types';
+
+import type {
+  PaymentMethod,
+  IncomeStatus,
+  InvoiceLevel,
+  UploadResponse,
+} from '@/types';
+import { auth } from '../../../../auth';
 
 /** Tamaño máximo del body (25MB para cubrir overhead de multipart) */
 export const runtime = 'nodejs';
@@ -21,6 +24,15 @@ export const runtime = 'nodejs';
  */
 export async function POST(request: NextRequest) {
   const config = getServerConfig();
+
+  const session = await auth();
+
+  if (!session?.user?.email) {
+    return buildErrorResponse('No autenticado. Inicia sesión para cargar facturas.', 401);
+  }
+
+  const uploadedByEmail = session.user.email;
+  const uploadedByName = session.user.name || session.user.email;
 
   try {
     // ── Parsear el multipart/form-data ────────────────────────
@@ -60,6 +72,28 @@ export async function POST(request: NextRequest) {
     const fileBuffer = Buffer.from(await file.arrayBuffer());
     const fileHash = createHash('sha256').update(fileBuffer).digest('hex');
 
+    const metodoPago = normalizePaymentMethod(
+      (formData.get('metodo_pago') as string) || 'Efectivo'
+    );
+
+    const estadoIngreso = normalizeIncomeStatus(
+      (formData.get('estado_ingreso') as string) || 'Ya ingresado'
+    );
+
+    const fechaEstimadaIngreso =
+      ((formData.get('fecha_estimada_ingreso') as string) || '').trim();
+
+    const nivel = normalizeInvoiceLevel(
+      (formData.get('nivel') as string) || 'Venta en tienda'
+    );
+
+    if (estadoIngreso === 'Cuenta por cobrar' && !fechaEstimadaIngreso) {
+      return buildErrorResponse(
+        'Debes indicar una fecha estimada de ingreso para las facturas por cobrar.',
+        400
+      );
+    }
+
     // MOCK RESPONSE SI NO HAY WEBHOOK
     if (!config.n8nWebhookUrl) {
       // Simular un retardo de procesamiento (1-2s)
@@ -92,6 +126,7 @@ export async function POST(request: NextRequest) {
             cliente_nombre: 'MOCK EXCEPTION SR.',
             cliente_nit_ci: '9876543',
             total: 345.50,
+            metodo_pago: metodoPago,
           }
         };
       } else {
@@ -106,8 +141,12 @@ export async function POST(request: NextRequest) {
             cliente_nit_ci: `${1000000 + Math.floor(Math.random() * 9000000)}`,
             total: 154.20,
             fecha_emision: new Date().toLocaleDateString('es-BO'),
-            hora_emision: new Date().toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' }),
-            items_count: 3
+            hora_emision: new Date().toLocaleTimeString('es-BO', {
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
+            items_count: 3,
+            metodo_pago: metodoPago,
           }
         };
       }
@@ -123,10 +162,16 @@ export async function POST(request: NextRequest) {
     n8nFormData.append('archivo', blob, file.name);
 
     // Metadatos enviados desde el frontend (fueron seteados a defaults vacíos/genéricos)
-    n8nFormData.append('uploaded_by', (formData.get('uploaded_by') as string) || '');
+    n8nFormData.append('uploaded_by', uploadedByEmail);
+    n8nFormData.append('uploaded_by_name', uploadedByName);
+
     n8nFormData.append('sucursal_usuario', (formData.get('sucursal_usuario') as string) || '');
     n8nFormData.append('punto_venta_usuario', (formData.get('punto_venta_usuario') as string) || '');
     n8nFormData.append('observacion', (formData.get('observacion') as string) || '');
+    n8nFormData.append('metodo_pago', metodoPago);
+    n8nFormData.append('estado_ingreso', estadoIngreso);
+    n8nFormData.append('fecha_estimada_ingreso', fechaEstimadaIngreso);
+    n8nFormData.append('nivel', nivel);
     n8nFormData.append('file_hash', fileHash);
     n8nFormData.append('file_size', file.size.toString());
     n8nFormData.append('file_name', file.name);
@@ -188,11 +233,32 @@ export async function POST(request: NextRequest) {
       normalizedMessage = n8nData.message || 'La factura tiene datos incompletos o inconsistentes.';
     }
 
+    const invoice = n8nData.invoice
+    ? {
+        ...n8nData.invoice,
+        invoice_uid: n8nData.invoice.invoice_uid || n8nData.invoice_uid,
+        metodo_pago: n8nData.invoice.metodo_pago || metodoPago,
+        estado_ingreso: n8nData.invoice.estado_ingreso || estadoIngreso,
+        fecha_estimada_ingreso:
+          n8nData.invoice.fecha_estimada_ingreso || fechaEstimadaIngreso,
+        fecha_ingreso_real: n8nData.invoice.fecha_ingreso_real || undefined,
+        nivel: n8nData.invoice.nivel || nivel,
+      }
+    : n8nData.invoice_uid
+      ? {
+          invoice_uid: n8nData.invoice_uid,
+          metodo_pago: metodoPago,
+          estado_ingreso: estadoIngreso,
+          fecha_estimada_ingreso: fechaEstimadaIngreso,
+          nivel,
+        }
+      : undefined;
+
     const response: UploadResponse = {
       ok: normalizedStatus === 'processed' || normalizedStatus === 'duplicate_invoice' || normalizedStatus === 'duplicate_file',
       status: normalizedStatus,
       message: normalizedMessage,
-      invoice: n8nData.invoice || undefined,
+      invoice,
       preview: n8nData.preview || undefined,
     };
 
@@ -210,6 +276,30 @@ export async function POST(request: NextRequest) {
 /**
  * Construye una respuesta de error uniforme
  */
+function normalizePaymentMethod(value: string): PaymentMethod {
+  const clean = String(value || '').trim();
+
+  return PAYMENT_METHOD_OPTIONS.includes(clean as PaymentMethod)
+    ? (clean as PaymentMethod)
+    : 'Efectivo';
+}
+
+function normalizeIncomeStatus(value: string): IncomeStatus {
+  const clean = String(value || '').trim();
+
+  return INCOME_STATUS_OPTIONS.includes(clean as IncomeStatus)
+    ? (clean as IncomeStatus)
+    : 'Ya ingresado';
+}
+
+function normalizeInvoiceLevel(value: string): InvoiceLevel {
+  const clean = String(value || '').trim();
+
+  return INVOICE_LEVEL_OPTIONS.includes(clean as InvoiceLevel)
+    ? (clean as InvoiceLevel)
+    : 'Venta en tienda';
+}
+
 function buildErrorResponse(message: string, httpStatus: number) {
   const response: UploadResponse = {
     ok: false,
