@@ -330,17 +330,19 @@ export default function FileDropzone({
                     </label>
                   </div>
 
-                  <button
-                    className="file-info__remove"
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onFileRemove(index);
-                    }}
-                    disabled={disabled}
-                  >
-                    Quitar
-                  </button>
+                  <div className="file-queue-actions">
+                    <button
+                      className="file-info__remove file-info__remove--row"
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onFileRemove(index);
+                      }}
+                      disabled={disabled}
+                    >
+                      Quitar
+                    </button>
+                  </div>
                 </div>
               );
             })}

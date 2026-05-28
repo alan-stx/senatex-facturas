@@ -120,9 +120,10 @@ body::before {
 .app-container {
   position: relative;
   z-index: 1;
-  max-width: 900px;
+  max-width: 1180px;
+  width: 100%;
   margin: 0 auto;
-  padding: 0 20px;
+  padding: 0 28px;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -301,15 +302,17 @@ body::before {
 }
 
 .file-info__remove {
-  background: transparent;
+  background: rgba(255, 255, 255, 0.035);
   border: 1px solid var(--color-border);
   color: var(--color-text-secondary);
   cursor: pointer;
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  border-radius: 10px;
   font-size: 0.78rem;
+  font-weight: 600;
   font-family: var(--font-sans);
   transition: all var(--transition-fast);
+  white-space: nowrap;
 }
 
 .file-info__remove:hover {
@@ -340,13 +343,13 @@ body::before {
 
 .file-queue-item {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) minmax(420px, 2fr) auto;
-  align-items: center;
-  gap: 14px;
-  padding: 12px;
+  grid-template-columns: minmax(150px, 210px) minmax(0, 1fr) 92px;
+  align-items: end;
+  gap: 18px;
+  padding: 16px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.02);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.025);
 }
 
 @media (max-width: 1000px) {
@@ -360,12 +363,6 @@ body::before {
   min-width: 0;
 }
 
-.payment-method-group {
-  border: 0;
-  padding: 0;
-  margin: 0;
-  min-width: 0;
-}
 
 .payment-method-group legend {
   margin-bottom: 6px;
@@ -1589,13 +1586,6 @@ body::before {
   border-radius: var(--radius-md);
 }
 
-.file-setting span {
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-muted);
-}
-
 .file-setting select,
 .file-setting input {
   width: 100%;
@@ -1614,11 +1604,6 @@ body::before {
   box-shadow: 0 0 0 3px var(--color-primary-soft);
 }
 
-@media (max-width: 1100px) {
-  .file-settings-grid {
-    grid-template-columns: repeat(2, minmax(160px, 1fr));
-  }
-}
 
 @media (max-width: 700px) {
   .file-settings-grid {
@@ -1628,9 +1613,11 @@ body::before {
 
 .file-settings-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(150px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+  gap: 12px;
   align-items: end;
+  width: 100%;
+  min-width: 0;
 }
 
 .file-setting {
@@ -1640,23 +1627,52 @@ body::before {
 }
 
 .file-setting span {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-muted);
+  letter-spacing: 0.07em;
+  color: #7f8aa3;
+  font-weight: 700;
 }
 
 .file-setting select,
 .file-setting input,
 .file-setting textarea {
   width: 100%;
+  min-height: 42px;
   border: 1px solid var(--color-border);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
+  border-radius: 11px;
+  background-color: #111827;
   color: var(--color-text);
-  padding: 8px 10px;
-  font-size: 0.82rem;
+  padding: 9px 12px;
+  font-size: 0.84rem;
+  font-weight: 600;
   outline: none;
+  color-scheme: dark;
+}
+
+.file-setting select {
+  cursor: pointer;
+  appearance: none;
+  padding-right: 34px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--color-text-secondary) 50%),
+    linear-gradient(135deg, var(--color-text-secondary) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) 18px,
+    calc(100% - 12px) 18px;
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+}
+
+.file-setting select option {
+  background-color: #111827;
+  color: #e8edf5;
+  font-weight: 500;
+}
+
+.file-setting select option:checked {
+  background-color: var(--color-primary);
+  color: #ffffff;
 }
 
 .file-setting select:focus,
@@ -1739,14 +1755,20 @@ body::before {
 }
 
 @media (max-width: 1100px) {
-  .file-settings-grid {
-    grid-template-columns: repeat(2, minmax(160px, 1fr));
+  .file-queue-item {
+    grid-template-columns: 1fr;
+    align-items: stretch;
   }
 
-  .accounts-summary-grid {
-    grid-template-columns: 1fr;
+  .file-queue-actions {
+    justify-content: flex-start;
+  }
+
+  .file-info__remove--row {
+    width: fit-content;
   }
 }
+
 
 @media (max-width: 700px) {
   .file-settings-grid {
@@ -1794,4 +1816,37 @@ body::before {
   color: var(--color-text);
   background: var(--color-primary-soft);
   border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.file-queue-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: end;
+  min-width: 92px;
+}
+
+.file-info__remove--row {
+  width: 84px;
+  min-height: 42px;
+  padding: 8px 12px;
+}
+
+.file-queue-item__details {
+  min-width: 0;
+  align-self: center;
+}
+
+.file-info__name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-info__size {
+  font-size: 0.76rem;
+  color: var(--color-text-muted);
+  margin-top: 3px;
 }
