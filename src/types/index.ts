@@ -249,3 +249,120 @@ export interface MarcarIngresoPayload {
   fecha_ingreso_real: string;
   observacion?: string;
 }
+
+
+// ============================================
+// Operaciones / Contrataciones
+// ============================================
+export type NivelCerteza = 'Alta' | 'Media' | 'Baja';
+
+export interface PagoProgramadoForm {
+  numero_pago: number;
+  concepto_pago: string;
+  porcentaje_programado: number;
+  monto_programado: number;
+  fecha_programada: string;
+  estado_pago: string;
+}
+
+export interface Operacion {
+  operacion_id: string;
+  cliente_id: string;
+  cliente_nombre?: string;
+  fecha_registro: string;
+  descripcion_operacion: string;
+  cantidad?: number;
+  tipo_operacion: string;
+  tipo_empresa: string;
+  responsable: string;
+  estado_operacion: string;
+  nivel_certeza: NivelCerteza;
+  probabilidad: number;
+  modalidad_pago: string;
+  monto_total_comprometido: number;
+  monto_total_ponderado?: number;
+  vigencia_desde?: string;
+  vigencia_hasta?: string;
+  observaciones?: string;
+  estado_general?: string;
+  created_by?: string;
+  created_by_name?: string;
+  created_at?: string;
+  updated_by?: string;
+  updated_by_name?: string;
+  updated_at?: string;
+}
+
+export interface OperacionCreatePayload {
+  cliente_id: string;
+  fecha_registro: string;
+  descripcion_operacion: string;
+  cantidad?: number;
+  tipo_operacion: string;
+  tipo_empresa: string;
+  responsable: string;
+  estado_operacion: string;
+  nivel_certeza: NivelCerteza;
+  probabilidad: number;
+  modalidad_pago: string;
+  monto_total_comprometido: number;
+  monto_total_ponderado: number;
+  vigencia_desde?: string;
+  vigencia_hasta?: string;
+  observaciones?: string;
+  estado_general?: string;
+  pagos_programados: PagoProgramadoForm[];
+}
+
+export interface OperacionesResponse {
+  ok: boolean;
+  message: string;
+  operaciones?: Operacion[];
+  operacion?: Operacion;
+}
+
+// ============================================
+// Pagos y Depósitos
+// ============================================
+export interface PagoProgramado {
+  pago_id: string;
+  operacion_id: string;
+  cliente_id: string;
+  cliente_nombre?: string;
+  descripcion_operacion?: string;
+  numero_pago: number;
+  concepto_pago: string;
+  porcentaje_programado: number;
+  monto_programado: number;
+  fecha_programada: string;
+  estado_pago: string;
+  monto_pagado_acumulado: number;
+  saldo_pago: number;
+  fecha_ultimo_pago?: string;
+  modalidad_pago?: string;
+  observaciones?: string;
+  created_by?: string;
+  created_by_name?: string;
+  created_at?: string;
+  updated_by?: string;
+  updated_by_name?: string;
+  updated_at?: string;
+}
+
+export interface DepositoCreatePayload {
+  pago_id: string;
+  operacion_id: string;
+  cliente_id: string;
+  fecha_deposito: string;
+  monto_depositado: number;
+  modalidad_pago: string;
+  nro_comprobante?: string;
+  observacion?: string;
+}
+
+export interface PagosResponse {
+  ok: boolean;
+  message: string;
+  pagos?: PagoProgramado[];
+  pago?: PagoProgramado;
+}

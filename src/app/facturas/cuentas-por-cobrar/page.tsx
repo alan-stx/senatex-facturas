@@ -272,8 +272,6 @@ export default function CuentasPorCobrarPage() {
                     <th>Monto</th>
                     <th>Emisión</th>
                     <th>Fecha estimada</th>
-                    <th>Estado</th>
-                    <th>Método</th>
                     <th>Nivel</th>
                     <th>Acción</th>
                   </tr>
@@ -284,8 +282,6 @@ export default function CuentasPorCobrarPage() {
                     <tr key={factura.invoice_uid}>
                       <td>
                         <strong>{factura.nro_factura || '—'}</strong>
-                        <br />
-                        <small>{factura.invoice_uid}</small>
                       </td>
 
                       <td>
@@ -298,9 +294,7 @@ export default function CuentasPorCobrarPage() {
                         )}
                       </td>
 
-                      <td>
-                        {formatMoney(factura.monto_pagar || factura.total)}
-                      </td>
+                      <td>{formatMoney(factura.monto_pagar || factura.total)}</td>
 
                       <td>{factura.fecha_emision || factura.fecha_iso || '—'}</td>
 
@@ -309,14 +303,6 @@ export default function CuentasPorCobrarPage() {
                         <br />
                         <small>{dueLabel(factura.fecha_estimada_ingreso)}</small>
                       </td>
-
-                      <td>
-                        <span className="status-badge status-badge--duplicate">
-                          Cuenta por cobrar
-                        </span>
-                      </td>
-
-                      <td>{factura.metodo_pago || '—'}</td>
 
                       <td>{factura.nivel || '—'}</td>
 

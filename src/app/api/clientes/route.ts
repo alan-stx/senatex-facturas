@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '../../../../auth';
 import { getServerConfig } from '@/lib/config';
+import { getUserRole } from '@/lib/permissions';
 import type { Cliente, ClienteCreatePayload, ClienteUpdatePayload, ClientesResponse } from '@/types';
 
 export const runtime = 'nodejs';
@@ -24,6 +25,12 @@ export async function GET() {
 
   if (!session?.user?.email) {
     return buildErrorResponse('No autenticado. Inicia sesión para consultar clientes.', 401);
+  }
+
+  const role = getUserRole(session.user.email);
+
+  if (role !== 'admin' && role !== 'comercial') {
+    return buildErrorResponse('No tienes permiso para acceder a este módulo.', 403);
   }
 
   const config = getServerConfig();
@@ -90,6 +97,12 @@ export async function POST(request: NextRequest) {
 
   if (!session?.user?.email) {
     return buildErrorResponse('No autenticado. Inicia sesión para registrar clientes.', 401);
+  }
+
+  const role = getUserRole(session.user.email);
+
+  if (role !== 'admin' && role !== 'comercial') {
+    return buildErrorResponse('No tienes permiso para acceder a este módulo.', 403);
   }
 
   const config = getServerConfig();
@@ -164,11 +177,18 @@ export async function POST(request: NextRequest) {
     cliente: data.cliente,
   });
 }
+
 export async function PUT(request: NextRequest) {
   const session = await auth();
 
   if (!session?.user?.email) {
     return buildErrorResponse('No autenticado. Inicia sesión para actualizar clientes.', 401);
+  }
+
+  const role = getUserRole(session.user.email);
+
+  if (role !== 'admin' && role !== 'comercial') {
+    return buildErrorResponse('No tienes permiso para acceder a este módulo.', 403);
   }
 
   const config = getServerConfig();

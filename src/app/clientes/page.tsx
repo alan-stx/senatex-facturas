@@ -84,7 +84,7 @@ export default function ClientesPage() {
         cliente.correo,
       ]
         .filter(Boolean)
-        .some((field) => field!.toLowerCase().includes(value));
+        .some((field) => String(field).toLowerCase().includes(value));
     });
   }, [clientes, search]);
 
@@ -180,9 +180,9 @@ export default function ClientesPage() {
           </div>
 
           <div className="client-summary-card">
-            <span>Institucionales</span>
+            <span>Con NIT registrado</span>
             <strong>
-              {clientes.filter((cliente) => cliente.tipo_cliente === 'Institucional').length}
+              {clientes.filter((cliente) => String(cliente.nit || '').trim()).length}
             </strong>
           </div>
         </div>
@@ -323,7 +323,6 @@ export default function ClientesPage() {
                   <th>Razón social</th>
                   <th>NIT</th>
                   <th>Contacto</th>
-                  <th>Tipo</th>
                   <th>Teléfono</th>
                   <th>Estado</th>
                   <th>Acciones</th>
@@ -340,7 +339,6 @@ export default function ClientesPage() {
                     </td>
                     <td>{cliente.nit || '-'}</td>
                     <td>{cliente.nombre_contacto || '-'}</td>
-                    <td>{cliente.tipo_cliente || '-'}</td>
                     <td>{cliente.telefono || '-'}</td>
                     <td>
                       <span className="status-pill">{cliente.estado_cliente || 'Activo'}</span>

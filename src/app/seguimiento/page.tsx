@@ -4,9 +4,12 @@ export default function SeguimientoPage() {
   return (
     <AppShell>
       <section className="module-page">
-        <span className="module-page__kicker">Módulo comercial</span>
+        <span className="module-page__kicker">Módulo no habilitado</span>
         <h1>Seguimiento</h1>
-        <p>Historial de avances, próximos hitos y observaciones comerciales.</p>
+        <p>
+          Este módulo no está habilitado por ahora. El seguimiento operativo se realizará desde
+          Operaciones y Pagos.
+        </p>
       </section>
     </AppShell>
   );
