@@ -1,0 +1,2046 @@
+{
+  "name": "SENATEX - Facturas Ingresos",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "facturas/ingresos",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "5436648b-3e0a-4a25-be1a-ee4df62f41d1",
+      "name": "Webhook",
+      "webhookId": "615d9d23-536a-4dd8-83b9-b3e637a3e39c"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json || {};\n\nconst action = String(body.action || '').trim();\n\nreturn [\n  {\n    json: {\n      action,\n      requested_by: body.requested_by || '',\n      requested_by_name: body.requested_by_name || '',\n\n      ingreso: body.ingreso || {},\n    },\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "3dcb5990-5120-4ea7-987b-accacf202246",
+      "name": "Code - Normalize Action"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.action}}",
+                    "rightValue": "list_pending",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "b062bda6-efbf-4999-aa60-04109072512f"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "8ebdddfc-ed8a-4e79-9545-9c8ff08d2129",
+                    "leftValue": "={{$json.action}}",
+                    "rightValue": "mark_as_paid",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        416,
+        0
+      ],
+      "id": "a5c28581-fa9e-4da0-b20b-3b2a5d24833c",
+      "name": "Switch - Action"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1G4HcSx6CjkaZXK0_IFpRlKNyuxEkb5oKhKa7QXFyid8",
+          "mode": "list",
+          "cachedResultName": "Facturas_SENATEX_Procesamiento",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1G4HcSx6CjkaZXK0_IFpRlKNyuxEkb5oKhKa7QXFyid8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Facturas",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1G4HcSx6CjkaZXK0_IFpRlKNyuxEkb5oKhKa7QXFyid8/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "estado_ingreso",
+              "lookupValue": "Cuenta por cobrar"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        624,
+        -192
+      ],
+      "id": "c599e57a-a003-4b15-afcf-80957acf8eef",
+      "name": "Get row(s) - Facturas Pendientes",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all();\n\nfunction toNumber(value) {\n  const clean = String(value || '')\n    .replace(/Bs\\.?/gi, '')\n    .replace(/\\s/g, '')\n    .replace(/,/g, '');\n\n  const num = Number(clean);\n  return Number.isFinite(num) ? num : 0;\n}\n\nconst facturas = rows\n  .map((item) => item.json)\n  .filter((row) => row.invoice_uid)\n  .filter((row) => row.estado_ingreso === 'Cuenta por cobrar')\n  .map((row) => ({\n    invoice_uid: row.invoice_uid || '',\n    nro_factura: row.nro_factura || '',\n    cliente_nombre: row.cliente_nombre || '',\n    cliente_nit_ci: row.cliente_nit_ci || '',\n    fecha_emision: row.fecha_emision || '',\n    fecha_iso: row.fecha_iso || '',\n    fecha_estimada_ingreso: row.fecha_estimada_ingreso || '',\n    fecha_ingreso_real: row.fecha_ingreso_real || '',\n    monto_pagar: toNumber(row.monto_pagar || row.total),\n    total: toNumber(row.total),\n    metodo_pago: row.metodo_pago || '',\n    estado_ingreso: row.estado_ingreso || '',\n    nivel: row.nivel || '',\n    uploaded_by: row.uploaded_by || '',\n    uploaded_by_name: row.uploaded_by_name || '',\n    filename_original: row.filename_original || '',\n  }));\n\nreturn [\n  {\n    json: {\n      ok: true,\n      message: 'Cuentas por cobrar obtenidas correctamente.',\n      facturas,\n    },\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        -192
+      ],
+      "id": "df49e3ef-3cda-4885-8b9c-a2b8843b3543",
+      "name": "Code - Format Pending Response"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json}}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1040,
+        -192
+      ],
+      "id": "c37aa8d9-49ba-443a-9756-da6268139bf9",
+      "name": "Respond - List Pending"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1G4HcSx6CjkaZXK0_IFpRlKNyuxEkb5oKhKa7QXFyid8",
+          "mode": "list",
+          "cachedResultName": "Facturas_SENATEX_Procesamiento",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1G4HcSx6CjkaZXK0_IFpRlKNyuxEkb5oKhKa7QXFyid8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Facturas",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1G4HcSx6CjkaZXK0_IFpRlKNyuxEkb5oKhKa7QXFyid8/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "invoice_uid",
+              "lookupValue": "={{$json.ingreso.invoice_uid}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        624,
+        176
+      ],
+      "id": "40de84d6-0092-44e3-9c71-9f75c3f1e03e",
+      "name": "Get row(s) - Factura by UID",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $('Code - Normalize Action').first().json.ingreso || {};\nconst rows = $input.all();\n\nconst found = rows\n  .map((item) => item.json)\n  .find((row) => row && row.invoice_uid);\n\nif (!found) {\n  return [\n    {\n      json: {\n        ok: false,\n        not_found: true,\n        message: 'No se encontró la factura para actualizar.',\n        invoice_uid: payload.invoice_uid || '',\n      },\n    },\n  ];\n}\n\nconst invoice_uid = String(payload.invoice_uid || '').trim();\nconst fecha_ingreso_real = String(payload.fecha_ingreso_real || '').trim();\n\nif (!invoice_uid) {\n  throw new Error('invoice_uid es obligatorio');\n}\n\nif (!fecha_ingreso_real) {\n  throw new Error('fecha_ingreso_real es obligatoria');\n}\n\nconst updated_at = payload.updated_at || new Date().toISOString();\n\nreturn [\n  {\n    json: {\n      ok: true,\n\n      row_number: found.row_number || found.rowNumber || found.__rowNumber || '',\n\n      invoice_uid,\n      nro_factura: found.nro_factura || '',\n      cliente_nombre: found.cliente_nombre || '',\n      monto_pagar: found.monto_pagar || found.total || '',\n\n      estado_anterior: found.estado_ingreso || '',\n      estado_nuevo: 'Ya ingresado',\n\n      fecha_estimada_ingreso_anterior: found.fecha_estimada_ingreso || '',\n      fecha_estimada_ingreso_nueva: found.fecha_estimada_ingreso || '',\n\n      estado_ingreso: 'Ya ingresado',\n      fecha_ingreso_real,\n\n      observacion: payload.observacion || '',\n\n      updated_by: payload.updated_by || '',\n      updated_by_name: payload.updated_by_name || '',\n      updated_at,\n    },\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        176
+      ],
+      "id": "8f5c315f-0c1a-40db-b95d-9613f7b8b254",
+      "name": "Code - Prepare Paid Update"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "59b94651-f932-4964-b584-e773fff69f24",
+              "leftValue": "={{$json.ok}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1040,
+        176
+      ],
+      "id": "1742a8e1-a20b-44bf-88dc-c03d7e4dc249",
+      "name": "IF - Factura encontrada"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{\n  {\n    ok: false,\n    message: $json.message || 'No se encontró la factura para actualizar.'\n  }\n}}",
+        "options": {
+          "responseCode": 404
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1344,
+        336
+      ],
+      "id": "4a372bcc-cc4b-4ae9-9fcd-ad05bc5a820c",
+      "name": "Respond - Not Found"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1G4HcSx6CjkaZXK0_IFpRlKNyuxEkb5oKhKa7QXFyid8",
+          "mode": "list",
+          "cachedResultName": "Facturas_SENATEX_Procesamiento",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1G4HcSx6CjkaZXK0_IFpRlKNyuxEkb5oKhKa7QXFyid8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Facturas",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1G4HcSx6CjkaZXK0_IFpRlKNyuxEkb5oKhKa7QXFyid8/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{$json.row_number}}",
+            "estado_ingreso": "={{$json.estado_ingreso}}",
+            "fecha_estimada_ingreso": "={{$json.fecha_estimada_ingreso_nueva}}",
+            "fecha_ingreso_real": "={{$json.fecha_ingreso_real}}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "invoice_uid",
+              "displayName": "invoice_uid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "emisor_razon_social",
+              "displayName": "emisor_razon_social",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "emisor_nit",
+              "displayName": "emisor_nit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sucursal",
+              "displayName": "sucursal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "punto_venta",
+              "displayName": "punto_venta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "direccion",
+              "displayName": "direccion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ciudad",
+              "displayName": "ciudad",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "nro_factura",
+              "displayName": "nro_factura",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_emision",
+              "displayName": "fecha_emision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "hora_emision",
+              "displayName": "hora_emision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cod_autorizacion",
+              "displayName": "cod_autorizacion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cliente_nombre",
+              "displayName": "cliente_nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cliente_nit_ci",
+              "displayName": "cliente_nit_ci",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cliente_codigo",
+              "displayName": "cliente_codigo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "subtotal",
+              "displayName": "subtotal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "descuento_total",
+              "displayName": "descuento_total",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "total",
+              "displayName": "total",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "monto_gift_card",
+              "displayName": "monto_gift_card",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "monto_pagar",
+              "displayName": "monto_pagar",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "importe_base_credito_fiscal",
+              "displayName": "importe_base_credito_fiscal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "literal",
+              "displayName": "literal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "items_count",
+              "displayName": "items_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "filename_original",
+              "displayName": "filename_original",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "file_hash",
+              "displayName": "file_hash",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "uploaded_by",
+              "displayName": "uploaded_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sucursal_usuario",
+              "displayName": "sucursal_usuario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "punto_venta_usuario",
+              "displayName": "punto_venta_usuario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "uploaded_at",
+              "displayName": "uploaded_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "processed_at",
+              "displayName": "processed_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "processing_status",
+              "displayName": "processing_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "duplicate_flag",
+              "displayName": "duplicate_flag",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "duplicate_reason",
+              "displayName": "duplicate_reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "confidence_score",
+              "displayName": "confidence_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_iso",
+              "displayName": "fecha_iso",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "hora_24",
+              "displayName": "hora_24",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "datetime_iso",
+              "displayName": "datetime_iso",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "anio",
+              "displayName": "anio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "mes",
+              "displayName": "mes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "dia",
+              "displayName": "dia",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "trimestre",
+              "displayName": "trimestre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "semana_anio",
+              "displayName": "semana_anio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "dia_semana_num",
+              "displayName": "dia_semana_num",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "dia_semana_nombre",
+              "displayName": "dia_semana_nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "franja_horaria",
+              "displayName": "franja_horaria",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "items_subtotal_sum",
+              "displayName": "items_subtotal_sum",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "items_extraction_ok",
+              "displayName": "items_extraction_ok",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ticket_valido",
+              "displayName": "ticket_valido",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "origen_extraccion_items",
+              "displayName": "origen_extraccion_items",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "codigo_tienda",
+              "displayName": "codigo_tienda",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "nombre_tienda",
+              "displayName": "nombre_tienda",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "uploaded_by_name",
+              "displayName": "uploaded_by_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "metodo_pago",
+              "displayName": "metodo_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado_ingreso",
+              "displayName": "estado_ingreso",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_estimada_ingreso",
+              "displayName": "fecha_estimada_ingreso",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_ingreso_real",
+              "displayName": "fecha_ingreso_real",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "nivel",
+              "displayName": "nivel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1248,
+        80
+      ],
+      "id": "23d877d8-7aed-460c-8465-78bb9cac3005",
+      "name": "Update row - Facturas",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1G4HcSx6CjkaZXK0_IFpRlKNyuxEkb5oKhKa7QXFyid8",
+          "mode": "list",
+          "cachedResultName": "Facturas_SENATEX_Procesamiento",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1G4HcSx6CjkaZXK0_IFpRlKNyuxEkb5oKhKa7QXFyid8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1831319092,
+          "mode": "list",
+          "cachedResultName": "Items",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1G4HcSx6CjkaZXK0_IFpRlKNyuxEkb5oKhKa7QXFyid8/edit#gid=1831319092"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "invoice_uid",
+              "lookupValue": "={{$('Code - Prepare Paid Update').first().json.invoice_uid}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1456,
+        80
+      ],
+      "id": "a16f4741-fc8b-4bb6-ba78-719929bc4423",
+      "name": "Get row(s) - Items by UID",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const update = $('Code - Prepare Paid Update').first().json;\n\nconst rows = $input.all()\n  .map((item) => item.json)\n  .filter((row) => row && row.invoice_uid);\n\nreturn rows.map((row) => ({\n  json: {\n    ...row,\n    row_number: row.row_number || row.rowNumber || row.__rowNumber || '',\n    estado_ingreso: 'Ya ingresado',\n    fecha_ingreso_real: update.fecha_ingreso_real,\n    fecha_estimada_ingreso: update.fecha_estimada_ingreso_nueva || '',\n  },\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1664,
+        80
+      ],
+      "id": "bd2e1a81-f5f0-4942-afb0-626eb50e7d90",
+      "name": "Code - Prepare Items Update"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1G4HcSx6CjkaZXK0_IFpRlKNyuxEkb5oKhKa7QXFyid8",
+          "mode": "list",
+          "cachedResultName": "Facturas_SENATEX_Procesamiento",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1G4HcSx6CjkaZXK0_IFpRlKNyuxEkb5oKhKa7QXFyid8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1831319092,
+          "mode": "list",
+          "cachedResultName": "Items",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1G4HcSx6CjkaZXK0_IFpRlKNyuxEkb5oKhKa7QXFyid8/edit#gid=1831319092"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{$json.row_number}}",
+            "estado_ingreso": "={{$json.estado_ingreso}}",
+            "fecha_estimada_ingreso": "={{$json.fecha_estimada_ingreso}}",
+            "fecha_ingreso_real": "={{$json.fecha_ingreso_real}}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "invoice_uid",
+              "displayName": "invoice_uid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "nro_factura",
+              "displayName": "nro_factura",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_emision",
+              "displayName": "fecha_emision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "emisor_nit",
+              "displayName": "emisor_nit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cliente_nombre",
+              "displayName": "cliente_nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cliente_nit_ci",
+              "displayName": "cliente_nit_ci",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "item_nro",
+              "displayName": "item_nro",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "codigo_producto",
+              "displayName": "codigo_producto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "descripcion",
+              "displayName": "descripcion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cantidad",
+              "displayName": "cantidad",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "unidad_medida",
+              "displayName": "unidad_medida",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "precio_unitario",
+              "displayName": "precio_unitario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "descuento_item",
+              "displayName": "descuento_item",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "subtotal_item",
+              "displayName": "subtotal_item",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "filename_original",
+              "displayName": "filename_original",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "uploaded_at",
+              "displayName": "uploaded_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_iso",
+              "displayName": "fecha_iso",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "hora_24",
+              "displayName": "hora_24",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "datetime_iso",
+              "displayName": "datetime_iso",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "anio",
+              "displayName": "anio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "mes",
+              "displayName": "mes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "trimestre",
+              "displayName": "trimestre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "dia_semana_nombre",
+              "displayName": "dia_semana_nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "franja_horaria",
+              "displayName": "franja_horaria",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ciudad",
+              "displayName": "ciudad",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sucursal",
+              "displayName": "sucursal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "punto_venta",
+              "displayName": "punto_venta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "codigo_tienda",
+              "displayName": "codigo_tienda",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "nombre_tienda",
+              "displayName": "nombre_tienda",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tipo_producto",
+              "displayName": "tipo_producto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sub_producto",
+              "displayName": "sub_producto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "uploaded_by",
+              "displayName": "uploaded_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "uploaded_by_name",
+              "displayName": "uploaded_by_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "metodo_pago",
+              "displayName": "metodo_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado_ingreso",
+              "displayName": "estado_ingreso",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_estimada_ingreso",
+              "displayName": "fecha_estimada_ingreso",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_ingreso_real",
+              "displayName": "fecha_ingreso_real",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "nivel",
+              "displayName": "nivel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1872,
+        80
+      ],
+      "id": "33372d78-fe50-41b6-afe9-055e8ff8577e",
+      "name": "Update rows - Items",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1G4HcSx6CjkaZXK0_IFpRlKNyuxEkb5oKhKa7QXFyid8",
+          "mode": "list",
+          "cachedResultName": "Facturas_SENATEX_Procesamiento",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1G4HcSx6CjkaZXK0_IFpRlKNyuxEkb5oKhKa7QXFyid8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 861017753,
+          "mode": "list",
+          "cachedResultName": "Procesamiento",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1G4HcSx6CjkaZXK0_IFpRlKNyuxEkb5oKhKa7QXFyid8/edit#gid=861017753"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "invoice_uid",
+              "lookupValue": "={{$('Code - Prepare Paid Update').first().json.invoice_uid}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2224,
+        80
+      ],
+      "id": "65c55237-27af-4525-b585-4a86156de04e",
+      "name": "Get row(s) - Procesamiento by UID",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const update = $('Code - Prepare Paid Update').first().json;\n\nconst rows = $input.all()\n  .map((item) => item.json)\n  .filter((row) => row && row.invoice_uid);\n\nreturn rows.map((row) => ({\n  json: {\n    ...row,\n    row_number: row.row_number || row.rowNumber || row.__rowNumber || '',\n    estado_ingreso: 'Ya ingresado',\n    fecha_ingreso_real: update.fecha_ingreso_real,\n    fecha_estimada_ingreso: update.fecha_estimada_ingreso_nueva || '',\n  },\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2416,
+        80
+      ],
+      "id": "0fd7b9c9-3ebe-4de1-820e-a5484ee5c85c",
+      "name": "Code - Prepare Procesamiento Update"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1G4HcSx6CjkaZXK0_IFpRlKNyuxEkb5oKhKa7QXFyid8",
+          "mode": "list",
+          "cachedResultName": "Facturas_SENATEX_Procesamiento",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1G4HcSx6CjkaZXK0_IFpRlKNyuxEkb5oKhKa7QXFyid8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 861017753,
+          "mode": "list",
+          "cachedResultName": "Procesamiento",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1G4HcSx6CjkaZXK0_IFpRlKNyuxEkb5oKhKa7QXFyid8/edit#gid=861017753"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{$json.row_number}}",
+            "estado_ingreso": "={{$json.estado_ingreso}}",
+            "fecha_ingreso_real": "={{$json.fecha_ingreso_real}}",
+            "fecha_estimada_ingreso": "={{$json.fecha_estimada_ingreso}}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "process_id",
+              "displayName": "process_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "invoice_uid",
+              "displayName": "invoice_uid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "filename_original",
+              "displayName": "filename_original",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "file_hash",
+              "displayName": "file_hash",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "uploaded_by",
+              "displayName": "uploaded_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sucursal_usuario",
+              "displayName": "sucursal_usuario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "punto_venta_usuario",
+              "displayName": "punto_venta_usuario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "uploaded_at",
+              "displayName": "uploaded_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "processed_at",
+              "displayName": "processed_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "duplicate_reason",
+              "displayName": "duplicate_reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "items_count",
+              "displayName": "items_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "confidence_score",
+              "displayName": "confidence_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "uploaded_by_name",
+              "displayName": "uploaded_by_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "metodo_pago",
+              "displayName": "metodo_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado_ingreso",
+              "displayName": "estado_ingreso",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_estimada_ingreso",
+              "displayName": "fecha_estimada_ingreso",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_ingreso_real",
+              "displayName": "fecha_ingreso_real",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "nivel",
+              "displayName": "nivel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2624,
+        80
+      ],
+      "id": "ab298470-5426-4e6f-87dc-58b79de36171",
+      "name": "Update rows - Procesamiento",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1G4HcSx6CjkaZXK0_IFpRlKNyuxEkb5oKhKa7QXFyid8",
+          "mode": "list",
+          "cachedResultName": "Facturas_SENATEX_Procesamiento",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1G4HcSx6CjkaZXK0_IFpRlKNyuxEkb5oKhKa7QXFyid8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1790953377,
+          "mode": "list",
+          "cachedResultName": "Historial_Ingresos_Facturas",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1G4HcSx6CjkaZXK0_IFpRlKNyuxEkb5oKhKa7QXFyid8/edit#gid=1790953377"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "historial_id": "={{'HIST_ING_' + Date.now()}}",
+            "invoice_uid": "={{$('Code - Prepare Paid Update').first().json.invoice_uid}}",
+            "nro_factura": "={{$('Code - Prepare Paid Update').first().json.nro_factura}}",
+            "cliente_nombre": "={{$('Code - Prepare Paid Update').first().json.cliente_nombre}}",
+            "monto_pagar": "={{$('Code - Prepare Paid Update').first().json.monto_pagar}}",
+            "estado_anterior": "={{$('Code - Prepare Paid Update').first().json.estado_anterior}}",
+            "estado_nuevo": "={{$('Code - Prepare Paid Update').first().json.estado_nuevo}}",
+            "fecha_estimada_ingreso_anterior": "={{$('Code - Prepare Paid Update').first().json.fecha_estimada_ingreso_anterior}}",
+            "fecha_estimada_ingreso_nueva": "={{$('Code - Prepare Paid Update').first().json.fecha_estimada_ingreso_nueva}}",
+            "fecha_ingreso_real": "={{$('Code - Prepare Paid Update').first().json.fecha_ingreso_real}}",
+            "observacion": "={{$('Code - Prepare Paid Update').first().json.observacion}}",
+            "updated_by": "={{$('Code - Prepare Paid Update').first().json.updated_by}}",
+            "updated_by_name": "={{$('Code - Prepare Paid Update').first().json.updated_by_name}}",
+            "updated_at": "={{$('Code - Prepare Paid Update').first().json.updated_at}}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "historial_id",
+              "displayName": "historial_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "invoice_uid",
+              "displayName": "invoice_uid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "nro_factura",
+              "displayName": "nro_factura",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cliente_nombre",
+              "displayName": "cliente_nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "monto_pagar",
+              "displayName": "monto_pagar",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado_anterior",
+              "displayName": "estado_anterior",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado_nuevo",
+              "displayName": "estado_nuevo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_estimada_ingreso_anterior",
+              "displayName": "fecha_estimada_ingreso_anterior",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_estimada_ingreso_nueva",
+              "displayName": "fecha_estimada_ingreso_nueva",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_ingreso_real",
+              "displayName": "fecha_ingreso_real",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "observacion",
+              "displayName": "observacion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_by",
+              "displayName": "updated_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_by_name",
+              "displayName": "updated_by_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3040,
+        80
+      ],
+      "id": "a6f238b4-1b8c-4548-8a52-e8325c82369f",
+      "name": "Append row - Historial_Ingresos_Facturas",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{\n  {\n    ok: true,\n    message: 'Cuenta por cobrar marcada como ya ingresada.',\n    factura: {\n      invoice_uid: $('Code - Prepare Paid Update').first().json.invoice_uid,\n      estado_ingreso: 'Ya ingresado',\n      fecha_ingreso_real: $('Code - Prepare Paid Update').first().json.fecha_ingreso_real\n    }\n  }\n}}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        3248,
+        80
+      ],
+      "id": "b11cf65a-60f9-4bb7-9336-94f43c022c41",
+      "name": "Respond - Paid OK"
+    },
+    {
+      "parameters": {
+        "jsCode": "const update = $('Code - Prepare Paid Update').first().json;\n\nreturn [\n  {\n    json: {\n      ...update,\n    },\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2048,
+        80
+      ],
+      "id": "77ce64d3-464e-480c-b11c-a8ae68beb871",
+      "name": "Code - Continue After Items Update"
+    },
+    {
+      "parameters": {
+        "jsCode": "const update = $('Code - Prepare Paid Update').first().json;\n\nreturn [\n  {\n    json: {\n      ...update,\n    },\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2832,
+        80
+      ],
+      "id": "771e3f5e-3489-4c7f-b275-cf46e1ce0fa7",
+      "name": "Code - Continue After Procesamiento Update"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code - Normalize Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Normalize Action": {
+      "main": [
+        [
+          {
+            "node": "Switch - Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch - Action": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) - Facturas Pendientes",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get row(s) - Factura by UID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) - Facturas Pendientes": {
+      "main": [
+        [
+          {
+            "node": "Code - Format Pending Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Format Pending Response": {
+      "main": [
+        [
+          {
+            "node": "Respond - List Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) - Factura by UID": {
+      "main": [
+        [
+          {
+            "node": "Code - Prepare Paid Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Prepare Paid Update": {
+      "main": [
+        [
+          {
+            "node": "IF - Factura encontrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Factura encontrada": {
+      "main": [
+        [
+          {
+            "node": "Update row - Facturas",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Not Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row - Facturas": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) - Items by UID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) - Items by UID": {
+      "main": [
+        [
+          {
+            "node": "Code - Prepare Items Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Prepare Items Update": {
+      "main": [
+        [
+          {
+            "node": "Update rows - Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update rows - Items": {
+      "main": [
+        [
+          {
+            "node": "Code - Continue After Items Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) - Procesamiento by UID": {
+      "main": [
+        [
+          {
+            "node": "Code - Prepare Procesamiento Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Prepare Procesamiento Update": {
+      "main": [
+        [
+          {
+            "node": "Update rows - Procesamiento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update rows - Procesamiento": {
+      "main": [
+        [
+          {
+            "node": "Code - Continue After Procesamiento Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row - Historial_Ingresos_Facturas": {
+      "main": [
+        [
+          {
+            "node": "Respond - Paid OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Continue After Items Update": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) - Procesamiento by UID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Continue After Procesamiento Update": {
+      "main": [
+        [
+          {
+            "node": "Append row - Historial_Ingresos_Facturas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "173a2032-ad63-4f4b-ae78-d06fea38c132",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "40c3efda9d8236b5ebc3abfae04d0f01b4e1e9727745fc99fa2aa921c887d1e0"
+  },
+  "id": "ZBTzVz9eSZrOeDrD",
+  "tags": []
+}

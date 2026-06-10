@@ -1,0 +1,991 @@
+{
+  "name": "SENATEX - Clientes",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "senatex-clientes",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "2eeca25d-45f5-4436-9605-f91f57e50484",
+      "name": "Webhook",
+      "webhookId": "b05f4876-02e8-4b5c-9ba4-97eb502505fb"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "21282b3c-724d-4fd3-9a35-a7b613c0862b",
+                    "leftValue": "={{ $json.body.action }}",
+                    "rightValue": "list",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "e311c6e2-ab6e-4618-a609-73d480b90395",
+                    "leftValue": "={{ $json.body.action }}",
+                    "rightValue": "create",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "fb51d2b1-1fd7-49a7-91a0-c38736bdad09",
+                    "leftValue": "={{ $json.body.action }}",
+                    "rightValue": "update",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "27613579-d893-4339-a711-9a19ef833c91",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Clientes",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        544,
+        -48
+      ],
+      "id": "5cc2ee9a-bdb0-429a-ba5d-39325e6ea1f7",
+      "name": "Get row(s) in sheet",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const clientes = $input\n  .all()\n  .map(item => item.json)\n  .filter(row => row.cliente_id || row.razon_social || row.nit);\n\nreturn [\n  {\n    json: {\n      ok: true,\n      message: 'Clientes obtenidos correctamente.',\n      clientes,\n    },\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        752,
+        -48
+      ],
+      "id": "82712c80-1b1d-4adb-8ac7-0433eead1313",
+      "name": "Format List Response"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1024,
+        -48
+      ],
+      "id": "ceff9f6a-f4d6-475d-ac6d-521f9e778a24",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input\n  .all()\n  .map(item => item.json)\n  .filter(row => row.cliente_id || row.razon_social || row.nit);\n\n// El body original viene desde el Webhook\nconst webhookData = $('Webhook').first().json.body;\nconst cliente = webhookData.cliente || {};\n\nfunction normalize(value) {\n  return String(value || '')\n    .trim()\n    .toLowerCase()\n    .replace(/\\s+/g, ' ');\n}\n\nconst razonSocial = String(cliente.razon_social || '').trim();\nconst nit = String(cliente.nit || '').trim();\n\nif (!razonSocial) {\n  return [\n    {\n      json: {\n        ok: false,\n        message: 'La razón social es obligatoria.',\n      },\n    },\n  ];\n}\n\n// Validar duplicado por NIT\nif (nit) {\n  const duplicatedNit = rows.find(row => String(row.nit || '').trim() === nit);\n\n  if (duplicatedNit) {\n    return [\n      {\n        json: {\n          ok: false,\n          message: 'Ya existe un cliente registrado con ese NIT.',\n        },\n      },\n    ];\n  }\n}\n\n// Validar duplicado por razón social\nconst duplicatedName = rows.find(row => normalize(row.razon_social) === normalize(razonSocial));\n\nif (duplicatedName) {\n  return [\n    {\n      json: {\n        ok: false,\n        message: 'Ya existe un cliente registrado con esa razón social.',\n      },\n    },\n  ];\n}\n\n// Generar próximo cliente_id\nlet maxNumber = 0;\n\nfor (const row of rows) {\n  const id = String(row.cliente_id || '');\n  const match = id.match(/CLI-(\\d+)/);\n\n  if (match) {\n    const number = parseInt(match[1], 10);\n    if (number > maxNumber) maxNumber = number;\n  }\n}\n\nconst nextNumber = maxNumber + 1;\nconst clienteId = `CLI-${String(nextNumber).padStart(4, '0')}`;\n\nconst preparedCliente = {\n  cliente_id: clienteId,\n  razon_social: razonSocial,\n  nombre_contacto: cliente.nombre_contacto || '',\n  nit: nit,\n  tipo_cliente: cliente.tipo_cliente || '',\n  telefono: cliente.telefono || '',\n  correo: cliente.correo || '',\n  direccion: cliente.direccion || '',\n  estado_cliente: cliente.estado_cliente || 'Activo',\n  observaciones: cliente.observaciones || '',\n  created_by: cliente.created_by || '',\n  created_by_name: cliente.created_by_name || '',\n  created_at: cliente.created_at || new Date().toISOString(),\n  updated_by: '',\n  updated_by_name: '',\n  updated_at: '',\n};\n\nreturn [\n  {\n    json: {\n      ok: true,\n      message: 'Cliente preparado correctamente.',\n      cliente: preparedCliente,\n    },\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        752,
+        144
+      ],
+      "id": "a60fc451-090b-4c81-93f5-103242655fc7",
+      "name": "Prepare Cliente"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d9586319-51ee-4d3c-ad9b-cf30e85f4c4a",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        960,
+        144
+      ],
+      "id": "8463ced6-ba2d-480b-86de-65e8590c58e3",
+      "name": "Cliente OK?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1168,
+        288
+      ],
+      "id": "84474c5b-e6ad-4d70-a771-84f18290cd8a",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Clientes",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "cliente_id": "={{ $json.cliente.cliente_id }}",
+            "razon_social": "={{ $json.cliente.razon_social }}",
+            "nombre_contacto": "={{ $json.cliente.nombre_contacto }}",
+            "nit": "={{ $json.cliente.nit }}",
+            "tipo_cliente": "={{ $json.cliente.tipo_cliente }}",
+            "telefono": "={{ $json.cliente.telefono }}",
+            "correo": "={{ $json.cliente.correo }}",
+            "direccion": "={{ $json.cliente.direccion }}",
+            "estado_cliente": "={{ $json.cliente.estado_cliente }}",
+            "observaciones": "={{ $json.cliente.observaciones }}",
+            "created_by": "={{ $json.cliente.created_by }}",
+            "created_by_name": "={{ $json.cliente.created_by_name }}",
+            "created_at": "={{ $json.cliente.created_at }}",
+            "updated_by": "={{ $json.cliente.updated_by }}",
+            "updated_by_name": "={{ $json.cliente.updated_by_name }}",
+            "updated_at": "={{ $json.cliente.updated_at }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "cliente_id",
+              "displayName": "cliente_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "razon_social",
+              "displayName": "razon_social",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "nombre_contacto",
+              "displayName": "nombre_contacto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "nit",
+              "displayName": "nit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tipo_cliente",
+              "displayName": "tipo_cliente",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "telefono",
+              "displayName": "telefono",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "correo",
+              "displayName": "correo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "direccion",
+              "displayName": "direccion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado_cliente",
+              "displayName": "estado_cliente",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "observaciones",
+              "displayName": "observaciones",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_by",
+              "displayName": "created_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "created_by_name",
+              "displayName": "created_by_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_by",
+              "displayName": "updated_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "updated_by_name",
+              "displayName": "updated_by_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1184,
+        112
+      ],
+      "id": "65405795-97f0-4aff-89fe-c75df7504d0e",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  ok: true,\n  message: 'Cliente registrado correctamente.',\n  cliente: $('Prepare Cliente').first().json.cliente\n} }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1392,
+        112
+      ],
+      "id": "92201a32-18ba-4e09-8f3f-2a70fb304078",
+      "name": "Respond to Webhook2"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Clientes",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        528,
+        544
+      ],
+      "id": "16aeea31-8af5-48de-b2e8-93eb77737fba",
+      "name": "Get clientes for update",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Clientes",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        544,
+        144
+      ],
+      "id": "a4363cac-cf69-48b9-85ab-3a0b47c4b6a3",
+      "name": "Get row(s) create",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input\n  .all()\n  .map(item => item.json)\n  .filter(row => row.cliente_id || row.razon_social || row.nit);\n\nconst webhookData = $('Webhook').first().json.body;\nconst cliente = webhookData.cliente || {};\n\nfunction normalize(value) {\n  return String(value || '')\n    .trim()\n    .toLowerCase()\n    .replace(/\\s+/g, ' ');\n}\n\nconst clienteId = String(cliente.cliente_id || '').trim();\nconst razonSocial = String(cliente.razon_social || '').trim();\nconst nit = String(cliente.nit || '').trim();\n\nif (!clienteId) {\n  return [\n    {\n      json: {\n        ok: false,\n        message: 'El cliente_id es obligatorio para actualizar.',\n      },\n    },\n  ];\n}\n\nif (!razonSocial) {\n  return [\n    {\n      json: {\n        ok: false,\n        message: 'La razón social es obligatoria.',\n      },\n    },\n  ];\n}\n\nconst existingCliente = rows.find(row => String(row.cliente_id || '').trim() === clienteId);\n\nif (!existingCliente) {\n  return [\n    {\n      json: {\n        ok: false,\n        message: 'No se encontró el cliente que deseas actualizar.',\n      },\n    },\n  ];\n}\n\n// Validar duplicado por NIT, ignorando el mismo cliente\nif (nit) {\n  const duplicatedNit = rows.find(row => {\n    return (\n      String(row.nit || '').trim() === nit &&\n      String(row.cliente_id || '').trim() !== clienteId\n    );\n  });\n\n  if (duplicatedNit) {\n    return [\n      {\n        json: {\n          ok: false,\n          message: 'Ya existe otro cliente registrado con ese NIT.',\n        },\n      },\n    ];\n  }\n}\n\n// Validar duplicado por razón social, ignorando el mismo cliente\nconst duplicatedName = rows.find(row => {\n  return (\n    normalize(row.razon_social) === normalize(razonSocial) &&\n    String(row.cliente_id || '').trim() !== clienteId\n  );\n});\n\nif (duplicatedName) {\n  return [\n    {\n      json: {\n        ok: false,\n        message: 'Ya existe otro cliente registrado con esa razón social.',\n      },\n    },\n  ];\n}\n\nconst updatedCliente = {\n  cliente_id: clienteId,\n  razon_social: razonSocial,\n  nombre_contacto: cliente.nombre_contacto || '',\n  nit,\n  tipo_cliente: cliente.tipo_cliente || '',\n  telefono: cliente.telefono || '',\n  correo: cliente.correo || '',\n  direccion: cliente.direccion || '',\n  estado_cliente: cliente.estado_cliente || 'Activo',\n  observaciones: cliente.observaciones || '',\n\n  // Mantener datos originales de creación\n  created_by: existingCliente.created_by || '',\n  created_by_name: existingCliente.created_by_name || '',\n  created_at: existingCliente.created_at || '',\n\n  // Datos de actualización\n  updated_by: cliente.updated_by || '',\n  updated_by_name: cliente.updated_by_name || '',\n  updated_at: cliente.updated_at || new Date().toISOString(),\n};\n\nreturn [\n  {\n    json: {\n      ok: true,\n      message: 'Cliente preparado para actualización.',\n      cliente: updatedCliente,\n    },\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        736,
+        544
+      ],
+      "id": "6918153e-712a-4d67-8ffd-b0bedbc669a1",
+      "name": "Prepare Update Cliente"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c62f06ab-0368-46a2-a552-fd027745a6cf",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        944,
+        544
+      ],
+      "id": "103beebd-96fd-4a4c-8fac-667831038a93",
+      "name": "Cliente Update OK?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1152,
+        640
+      ],
+      "id": "9dbb0aa8-1d29-40f6-8c84-b8c621299641",
+      "name": "Respond Update Error"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Clientes",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "cliente_id": "={{ $json.cliente.cliente_id }}",
+            "razon_social": "={{ $json.cliente.razon_social }}",
+            "nombre_contacto": "={{ $json.cliente.nombre_contacto }}",
+            "nit": "={{ $json.cliente.nit }}",
+            "tipo_cliente": "={{ $json.cliente.tipo_cliente }}",
+            "telefono": "={{ $json.cliente.telefono }}",
+            "correo": "={{ $json.cliente.correo }}",
+            "direccion": "={{ $json.cliente.direccion }}",
+            "estado_cliente": "={{ $json.cliente.estado_cliente }}",
+            "observaciones": "={{ $json.cliente.observaciones }}",
+            "created_by": "={{ $json.cliente.created_by }}",
+            "created_by_name": "={{ $json.cliente.created_by_name }}",
+            "created_at": "={{ $json.cliente.created_at }}",
+            "updated_by": "={{ $json.cliente.updated_by }}",
+            "updated_by_name": "={{ $json.cliente.updated_by_name }}",
+            "updated_at": "={{ $json.cliente.updated_at }}"
+          },
+          "matchingColumns": [
+            "cliente_id"
+          ],
+          "schema": [
+            {
+              "id": "cliente_id",
+              "displayName": "cliente_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "razon_social",
+              "displayName": "razon_social",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "nombre_contacto",
+              "displayName": "nombre_contacto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "nit",
+              "displayName": "nit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tipo_cliente",
+              "displayName": "tipo_cliente",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "telefono",
+              "displayName": "telefono",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "correo",
+              "displayName": "correo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "direccion",
+              "displayName": "direccion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado_cliente",
+              "displayName": "estado_cliente",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "observaciones",
+              "displayName": "observaciones",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_by",
+              "displayName": "created_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_by_name",
+              "displayName": "created_by_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_by",
+              "displayName": "updated_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_by_name",
+              "displayName": "updated_by_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1264,
+        448
+      ],
+      "id": "e7981d6b-9ba6-406b-a995-e1b2f40ec1df",
+      "name": "Update cliente row",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  ok: true,\n  message: 'Cliente actualizado correctamente.',\n  cliente: $('Prepare Update Cliente').first().json.cliente\n} }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1472,
+        448
+      ],
+      "id": "efbf7309-68cf-42aa-94b9-790e05847c08",
+      "name": "Respond Update Success"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get row(s) create",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get clientes for update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Format List Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format List Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Cliente": {
+      "main": [
+        [
+          {
+            "node": "Cliente OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cliente OK?": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) create": {
+      "main": [
+        [
+          {
+            "node": "Prepare Cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get clientes for update": {
+      "main": [
+        [
+          {
+            "node": "Prepare Update Cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Update Cliente": {
+      "main": [
+        [
+          {
+            "node": "Cliente Update OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cliente Update OK?": {
+      "main": [
+        [
+          {
+            "node": "Update cliente row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Update Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update cliente row": {
+      "main": [
+        [
+          {
+            "node": "Respond Update Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "7ca70dc0-369a-466d-9fa5-211ee9092344",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "40c3efda9d8236b5ebc3abfae04d0f01b4e1e9727745fc99fa2aa921c887d1e0"
+  },
+  "id": "awYpY48SvfzdbVNW",
+  "tags": []
+}

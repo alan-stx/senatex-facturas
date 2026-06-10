@@ -1,0 +1,998 @@
+{
+  "name": "SENATEX - Pagos",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "/senatex-pagos",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "60dae668-e652-4599-b6b0-26d7ded86330",
+      "name": "Webhook",
+      "webhookId": "8080d53f-2abe-48e4-9bf7-33d7973e436a"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json || {};\n\nreturn [\n  {\n    json: {\n      action: String(body.action || '').trim(),\n      requested_by: body.requested_by || '',\n      requested_by_name: body.requested_by_name || '',\n      deposito: body.deposito || {},\n    },\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "f88142c1-c115-4100-98d9-e23f8d4d0fb2",
+      "name": "Code - Normalize Action"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "list",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "771d5c14-f67a-4cd9-a1f4-112832a7cf6f"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c0799b83-f739-4977-9553-ed55c4205730",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "register_deposit",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        416,
+        0
+      ],
+      "id": "d3728c86-a37a-4b7d-8d40-d21545846dd4",
+      "name": "Switch - Action"
+    },
+    {
+      "parameters": {
+        "jsCode": "const pagosRows = $('Get row(s) - Pagos Programados')\n  .all()\n  .map(item => item.json)\n  .filter(row => row.pago_id);\n\nconst operacionesRows = $('Get row(s) - Operaciones')\n  .all()\n  .map(item => item.json)\n  .filter(row => row.operacion_id);\n\nconst clientesRows = $('Get row(s) - Clientes')\n  .all()\n  .map(item => item.json)\n  .filter(row => row.cliente_id);\n\nfunction toNumber(value) {\n  const clean = String(value || '')\n    .replace(/Bs\\.?/gi, '')\n    .replace(/\\s/g, '')\n    .replace(/,/g, '');\n\n  const num = Number(clean);\n  return Number.isFinite(num) ? num : 0;\n}\n\nfunction isOverdue(row) {\n  if (!row.fecha_programada) return false;\n  if (row.estado_pago === 'Pagado') return false;\n  if (toNumber(row.saldo_pago) <= 0) return false;\n\n  const today = new Date();\n  today.setHours(0, 0, 0, 0);\n\n  const dueDate = new Date(`${row.fecha_programada}T00:00:00`);\n  return dueDate < today;\n}\n\nconst pagos = pagosRows.map((pago) => {\n  const operacion = operacionesRows.find(\n    (item) => String(item.operacion_id || '') === String(pago.operacion_id || '')\n  );\n\n  const cliente = clientesRows.find(\n    (item) => String(item.cliente_id || '') === String(pago.cliente_id || '')\n  );\n\n  let estadoPago = pago.estado_pago || 'Pendiente';\n\n  if (estadoPago !== 'Pagado' && isOverdue(pago)) {\n    estadoPago = 'Vencido';\n  }\n\n  return {\n    pago_id: pago.pago_id || '',\n    operacion_id: pago.operacion_id || '',\n    cliente_id: pago.cliente_id || '',\n    cliente_nombre: cliente?.razon_social || pago.cliente_id || '',\n    descripcion_operacion: operacion?.descripcion_operacion || '',\n    numero_pago: toNumber(pago.numero_pago),\n    concepto_pago: pago.concepto_pago || '',\n    porcentaje_programado: toNumber(pago.porcentaje_programado),\n    monto_programado: toNumber(pago.monto_programado),\n    fecha_programada: pago.fecha_programada || '',\n    estado_pago: estadoPago,\n    monto_pagado_acumulado: toNumber(pago.monto_pagado_acumulado),\n    saldo_pago: toNumber(pago.saldo_pago),\n    fecha_ultimo_pago: pago.fecha_ultimo_pago || '',\n    modalidad_pago: pago.modalidad_pago || '',\n    observaciones: pago.observaciones || '',\n    created_by: pago.created_by || '',\n    created_by_name: pago.created_by_name || '',\n    created_at: pago.created_at || '',\n    updated_by: pago.updated_by || '',\n    updated_by_name: pago.updated_by_name || '',\n    updated_at: pago.updated_at || '',\n  };\n});\n\nreturn [\n  {\n    json: {\n      ok: true,\n      message: 'Pagos obtenidos correctamente.',\n      pagos,\n    },\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        -96
+      ],
+      "id": "ed60a20d-1a79-4ba0-ad0a-a9b8aa63f695",
+      "name": "Code - Format Pagos List"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1893833913,
+          "mode": "list",
+          "cachedResultName": "Pagos_Programados",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=1893833913"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        624,
+        -96
+      ],
+      "id": "35862254-28e6-4ba1-8175-4211139ba2b2",
+      "name": "Get row(s) - Pagos Programados",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1269396866,
+          "mode": "list",
+          "cachedResultName": "Operaciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=1269396866"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        832,
+        -96
+      ],
+      "id": "b0259a6f-4fc5-42cf-8b1f-5fea3cb37240",
+      "name": "Get row(s) - Operaciones",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Clientes",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1040,
+        -96
+      ],
+      "id": "e85b50bd-208e-4af1-958a-f0ba0f291ef6",
+      "name": "Get row(s) - Clientes",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1472,
+        -96
+      ],
+      "id": "d452cf72-441c-45f8-9f89-f5beaf84da46",
+      "name": "Respond - List"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1893833913,
+          "mode": "list",
+          "cachedResultName": "Pagos_Programados",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=1893833913"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "pago_id",
+              "lookupValue": "={{ $('Code - Normalize Action').first().json.deposito.pago_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        624,
+        96
+      ],
+      "id": "561ff40a-867a-43de-8584-865209fde7e7",
+      "name": "Get row(s) - Pago by ID",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 893064930,
+          "mode": "list",
+          "cachedResultName": "Depositos",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=893064930"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        832,
+        96
+      ],
+      "id": "a19a69a0-073f-4c92-b6c9-3b5167c1aed2",
+      "name": "Get row(s) - Depositos",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $('Code - Normalize Action').first().json.deposito || {};\n\nconst pagoRows = $('Get row(s) - Pago by ID')\n  .all()\n  .map(item => item.json)\n  .filter(row => row.pago_id);\n\nconst depositosRows = $('Get row(s) - Depositos')\n  .all()\n  .map(item => item.json)\n  .filter(row => row.deposito_id);\n\nfunction toNumber(value) {\n  const clean = String(value || '')\n    .replace(/Bs\\.?/gi, '')\n    .replace(/\\s/g, '')\n    .replace(/,/g, '');\n\n  const num = Number(clean);\n  return Number.isFinite(num) ? num : 0;\n}\n\nfunction nextDepositoId(rows) {\n  let max = 0;\n\n  for (const row of rows) {\n    const value = String(row.deposito_id || '');\n    const match = value.match(/DEP-(\\d+)/);\n\n    if (match) {\n      const number = parseInt(match[1], 10);\n      if (number > max) max = number;\n    }\n  }\n\n  return `DEP-${String(max + 1).padStart(4, '0')}`;\n}\n\nconst pago = pagoRows[0];\n\nif (!pago) {\n  return [\n    {\n      json: {\n        ok: false,\n        message: 'No se encontró el pago programado seleccionado.',\n      },\n    },\n  ];\n}\n\nconst montoDepositado = toNumber(payload.monto_depositado);\nconst montoProgramado = toNumber(pago.monto_programado);\nconst montoPagadoActual = toNumber(pago.monto_pagado_acumulado);\nconst saldoActual = toNumber(pago.saldo_pago);\n\nif (!payload.fecha_deposito) {\n  return [\n    {\n      json: {\n        ok: false,\n        message: 'La fecha de depósito es obligatoria.',\n      },\n    },\n  ];\n}\n\nif (montoDepositado <= 0) {\n  return [\n    {\n      json: {\n        ok: false,\n        message: 'El monto depositado debe ser mayor a 0.',\n      },\n    },\n  ];\n}\n\nif (montoDepositado > saldoActual) {\n  return [\n    {\n      json: {\n        ok: false,\n        message: 'El monto depositado no puede ser mayor al saldo pendiente.',\n      },\n    },\n  ];\n}\n\nconst nuevoMontoPagado = montoPagadoActual + montoDepositado;\nconst nuevoSaldo = Number((montoProgramado - nuevoMontoPagado).toFixed(2));\n\nlet nuevoEstado = 'Pendiente';\n\nif (nuevoSaldo <= 0) {\n  nuevoEstado = 'Pagado';\n} else if (nuevoMontoPagado > 0) {\n  nuevoEstado = 'Pagado parcial';\n}\n\nconst deposito = {\n  deposito_id: nextDepositoId(depositosRows),\n  pago_id: payload.pago_id || '',\n  operacion_id: payload.operacion_id || pago.operacion_id || '',\n  cliente_id: payload.cliente_id || pago.cliente_id || '',\n  fecha_deposito: payload.fecha_deposito || '',\n  monto_depositado: montoDepositado,\n  modalidad_pago: payload.modalidad_pago || '',\n  nro_comprobante: payload.nro_comprobante || '',\n  observacion: payload.observacion || '',\n  created_by: payload.created_by || '',\n  created_by_name: payload.created_by_name || '',\n  created_at: payload.created_at || new Date().toISOString(),\n};\n\nconst pagoActualizado = {\n  ...pago,\n\n  row_number: pago.row_number || pago.rowNumber || pago.__rowNumber || '',\n\n  pago_id: pago.pago_id || '',\n  operacion_id: pago.operacion_id || '',\n  cliente_id: pago.cliente_id || '',\n  numero_pago: pago.numero_pago || '',\n  concepto_pago: pago.concepto_pago || '',\n  porcentaje_programado: pago.porcentaje_programado || '',\n  monto_programado: montoProgramado,\n  fecha_programada: pago.fecha_programada || '',\n\n  estado_pago: nuevoEstado,\n  monto_pagado_acumulado: Number(nuevoMontoPagado.toFixed(2)),\n  saldo_pago: nuevoSaldo < 0 ? 0 : nuevoSaldo,\n  fecha_ultimo_pago: payload.fecha_deposito || '',\n\n  modalidad_pago: pago.modalidad_pago || payload.modalidad_pago || '',\n  observaciones: pago.observaciones || '',\n\n  created_by: pago.created_by || '',\n  created_by_name: pago.created_by_name || '',\n  created_at: pago.created_at || '',\n\n  updated_by: payload.created_by || '',\n  updated_by_name: payload.created_by_name || '',\n  updated_at: payload.created_at || new Date().toISOString(),\n};\n\nreturn [\n  {\n    json: {\n      ok: true,\n      message: 'Depósito preparado correctamente.',\n      deposito,\n      pago: pagoActualizado,\n    },\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        96
+      ],
+      "id": "c0c53c7f-7f56-426a-a408-ca6a335cbc34",
+      "name": "Code - Prepare Deposito"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "05e53a10-9f15-4284-8d5d-6314a62dcd1f",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1248,
+        96
+      ],
+      "id": "08057965-2c92-43da-9188-d2414ec0cfcc",
+      "name": "Deposito OK?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1456,
+        240
+      ],
+      "id": "fbc3c4c9-ed07-4d65-99b8-24676302c1bf",
+      "name": "Respond - Deposito Error"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 893064930,
+          "mode": "list",
+          "cachedResultName": "Depositos",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=893064930"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "deposito_id": "={{ $json.deposito.deposito_id }}",
+            "pago_id": "={{ $json.deposito.pago_id }}",
+            "operacion_id": "={{ $json.deposito.operacion_id }}",
+            "cliente_id": "={{ $json.deposito.cliente_id }}",
+            "fecha_deposito": "={{ $json.deposito.fecha_deposito }}",
+            "monto_depositado": "={{ $json.deposito.monto_depositado }}",
+            "modalidad_pago": "={{ $json.deposito.modalidad_pago }}",
+            "nro_comprobante": "={{ $json.deposito.nro_comprobante }}",
+            "observacion": "={{ $json.deposito.observacion }}",
+            "created_by": "={{ $json.deposito.created_by }}",
+            "created_by_name": "={{ $json.deposito.created_by_name }}",
+            "created_at": "={{ $json.deposito.created_at }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "deposito_id",
+              "displayName": "deposito_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pago_id",
+              "displayName": "pago_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "operacion_id",
+              "displayName": "operacion_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cliente_id",
+              "displayName": "cliente_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_deposito",
+              "displayName": "fecha_deposito",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "monto_depositado",
+              "displayName": "monto_depositado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "modalidad_pago",
+              "displayName": "modalidad_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "nro_comprobante",
+              "displayName": "nro_comprobante",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "observacion",
+              "displayName": "observacion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_by",
+              "displayName": "created_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_by_name",
+              "displayName": "created_by_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1504,
+        48
+      ],
+      "id": "f4adbb30-5112-4324-b664-cd28e0566121",
+      "name": "Append row - Depositos",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const prepared = $('Code - Prepare Deposito').first().json;\n\nreturn [\n  {\n    json: {\n      ...prepared.pago,\n    },\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1712,
+        48
+      ],
+      "id": "cdeeb3c1-b0a6-4340-b07f-41a16b91eee0",
+      "name": "Code - Continue After Deposito"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1893833913,
+          "mode": "list",
+          "cachedResultName": "Pagos_Programados",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=1893833913"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $json.row_number }}",
+            "pago_id": "={{ $json.pago_id }}",
+            "operacion_id": "={{ $json.operacion_id }}",
+            "cliente_id": "={{ $json.cliente_id }}",
+            "numero_pago": "={{ $json.numero_pago }}",
+            "concepto_pago": "={{ $json.concepto_pago }}",
+            "porcentaje_programado": "={{ $json.porcentaje_programado }}",
+            "monto_programado": "={{ $json.monto_programado }}",
+            "fecha_programada": "={{ $json.fecha_programada }}",
+            "estado_pago": "={{ $json.estado_pago }}",
+            "monto_pagado_acumulado": "={{ $json.monto_pagado_acumulado }}",
+            "saldo_pago": "={{ $json.saldo_pago }}",
+            "fecha_ultimo_pago": "={{ $json.fecha_ultimo_pago }}",
+            "modalidad_pago": "={{ $json.modalidad_pago }}",
+            "observaciones": "={{ $json.observaciones }}",
+            "created_by": "={{ $json.created_by }}",
+            "created_by_name": "={{ $json.created_by_name }}",
+            "created_at": "={{ $json.created_at }}",
+            "updated_by": "={{ $json.updated_by }}",
+            "updated_by_name": "={{ $json.updated_by_name }}",
+            "updated_at": "={{ $json.updated_at }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "pago_id",
+              "displayName": "pago_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "operacion_id",
+              "displayName": "operacion_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cliente_id",
+              "displayName": "cliente_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "numero_pago",
+              "displayName": "numero_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "concepto_pago",
+              "displayName": "concepto_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "porcentaje_programado",
+              "displayName": "porcentaje_programado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "monto_programado",
+              "displayName": "monto_programado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_programada",
+              "displayName": "fecha_programada",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado_pago",
+              "displayName": "estado_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "monto_pagado_acumulado",
+              "displayName": "monto_pagado_acumulado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "saldo_pago",
+              "displayName": "saldo_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_ultimo_pago",
+              "displayName": "fecha_ultimo_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "modalidad_pago",
+              "displayName": "modalidad_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "observaciones",
+              "displayName": "observaciones",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_by",
+              "displayName": "created_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_by_name",
+              "displayName": "created_by_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_by",
+              "displayName": "updated_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_by_name",
+              "displayName": "updated_by_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1920,
+        48
+      ],
+      "id": "5dafe698-4dc1-4e59-b98c-fd6af9139f72",
+      "name": "Update row - Pagos Programados",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  ok: true,\n  message: 'Depósito registrado correctamente.',\n  deposito: $('Code - Prepare Deposito').first().json.deposito,\n  pago: $('Code - Prepare Deposito').first().json.pago\n} }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2128,
+        48
+      ],
+      "id": "63ec6115-9a24-4cd0-88d9-b30cbd4d22f6",
+      "name": "Respond - Deposito OK"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code - Normalize Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Normalize Action": {
+      "main": [
+        [
+          {
+            "node": "Switch - Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch - Action": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) - Pagos Programados",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get row(s) - Pago by ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) - Pagos Programados": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) - Operaciones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) - Operaciones": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) - Clientes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) - Clientes": {
+      "main": [
+        [
+          {
+            "node": "Code - Format Pagos List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Format Pagos List": {
+      "main": [
+        [
+          {
+            "node": "Respond - List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) - Pago by ID": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) - Depositos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) - Depositos": {
+      "main": [
+        [
+          {
+            "node": "Code - Prepare Deposito",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Prepare Deposito": {
+      "main": [
+        [
+          {
+            "node": "Deposito OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deposito OK?": {
+      "main": [
+        [
+          {
+            "node": "Append row - Depositos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Deposito Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row - Depositos": {
+      "main": [
+        [
+          {
+            "node": "Code - Continue After Deposito",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Continue After Deposito": {
+      "main": [
+        [
+          {
+            "node": "Update row - Pagos Programados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row - Pagos Programados": {
+      "main": [
+        [
+          {
+            "node": "Respond - Deposito OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "7a294ff0-974f-42ce-b048-f6bde2ed4d6b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "40c3efda9d8236b5ebc3abfae04d0f01b4e1e9727745fc99fa2aa921c887d1e0"
+  },
+  "id": "ytzmGdDATPfYhBv6",
+  "tags": []
+}

@@ -1,0 +1,1270 @@
+{
+  "name": "SENATEX - Operaciones",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "/senatex-operaciones",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "d3804959-6c4a-416e-8a27-eb1423317eb7",
+      "name": "Webhook",
+      "webhookId": "b7bed4da-eae1-4be8-b0a8-fd51db31f110"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json || {};\n\nreturn [\n  {\n    json: {\n      action: String(body.action || '').trim(),\n      requested_by: body.requested_by || '',\n      requested_by_name: body.requested_by_name || '',\n      operacion: body.operacion || {},\n      pagos_programados: body.pagos_programados || [],\n      seguimiento_inicial: body.seguimiento_inicial || {},\n    },\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "370c8b22-b156-4693-a072-0f8e4ac8a20c",
+      "name": "Code - Normalize Action"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "list",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "a25159b8-9f1e-45ae-b87c-6900dec7675e"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c13f6d94-babc-4e59-9e3a-c15f4e136dc3",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "create",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        416,
+        0
+      ],
+      "id": "b14bd846-c407-454e-b8a0-f6f2f3f2cb2c",
+      "name": "Switch - Action"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1269396866,
+          "mode": "list",
+          "cachedResultName": "Operaciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=1269396866"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        624,
+        -96
+      ],
+      "id": "b5d37731-4955-412a-9e6c-69177f4e2c0e",
+      "name": "Get row(s) - Operaciones",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const operaciones = $input\n  .all()\n  .map(item => item.json)\n  .filter(row => row.operacion_id || row.cliente_id || row.descripcion_operacion);\n\nreturn [\n  {\n    json: {\n      ok: true,\n      message: 'Operaciones obtenidas correctamente.',\n      operaciones,\n    },\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        -96
+      ],
+      "id": "1d187a4e-5b79-43a9-b6a1-72088ece8ed0",
+      "name": "Code - Format List Response"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1040,
+        -96
+      ],
+      "id": "677a30ec-af85-47a6-958a-a646caccf65c",
+      "name": "Respond - List"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1269396866,
+          "mode": "list",
+          "cachedResultName": "Operaciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=1269396866"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        624,
+        96
+      ],
+      "id": "564bf675-ea62-40be-b92d-a635ebf6b033",
+      "name": "Get row(s) - Operaciones Create",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1893833913,
+          "mode": "list",
+          "cachedResultName": "Pagos_Programados",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=1893833913"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        832,
+        96
+      ],
+      "id": "07819909-6945-4503-8d25-adb7721ac0dc",
+      "name": "Get row(s) - Pagos Create",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1884227650,
+          "mode": "list",
+          "cachedResultName": "Seguimiento",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=1884227650"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1040,
+        96
+      ],
+      "id": "9d75f4dc-1fbe-41cc-b667-0644665ae6af",
+      "name": "Get row(s) - Seguimiento Create",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $('Code - Normalize Action').first().json;\n\nconst operacion = payload.operacion || {};\nconst pagosInput = payload.pagos_programados || [];\nconst seguimientoInicial = payload.seguimiento_inicial || {};\n\nconst operacionesRows = $('Get row(s) - Operaciones Create')\n  .all()\n  .map(item => item.json)\n  .filter(row => row.operacion_id);\n\nconst pagosRows = $('Get row(s) - Pagos Create')\n  .all()\n  .map(item => item.json)\n  .filter(row => row.pago_id);\n\nconst seguimientoRows = $('Get row(s) - Seguimiento Create')\n  .all()\n  .map(item => item.json)\n  .filter(row => row.seguimiento_id);\n\nfunction nextId(rows, field, prefix) {\n  let max = 0;\n\n  for (const row of rows) {\n    const value = String(row[field] || '');\n    const match = value.match(new RegExp(`${prefix}-(\\\\d+)`));\n\n    if (match) {\n      const number = parseInt(match[1], 10);\n      if (number > max) max = number;\n    }\n  }\n\n  return `${prefix}-${String(max + 1).padStart(4, '0')}`;\n}\n\nfunction toNumber(value) {\n  const num = Number(value || 0);\n  return Number.isFinite(num) ? num : 0;\n}\n\nif (!operacion.cliente_id) {\n  return [\n    {\n      json: {\n        ok: false,\n        message: 'Debe seleccionar un cliente.',\n      },\n    },\n  ];\n}\n\nif (!String(operacion.descripcion_operacion || '').trim()) {\n  return [\n    {\n      json: {\n        ok: false,\n        message: 'La descripción de la operación es obligatoria.',\n      },\n    },\n  ];\n}\n\nif (!pagosInput.length) {\n  return [\n    {\n      json: {\n        ok: false,\n        message: 'Debe existir al menos un pago programado.',\n      },\n    },\n  ];\n}\n\nconst montoTotal = toNumber(operacion.monto_total_comprometido);\n\nconst totalPorcentaje = pagosInput.reduce(\n  (sum, pago) => sum + toNumber(pago.porcentaje_programado),\n  0\n);\n\nconst totalPagos = pagosInput.reduce(\n  (sum, pago) => sum + toNumber(pago.monto_programado),\n  0\n);\n\nif (Math.abs(totalPorcentaje - 100) > 0.01) {\n  return [\n    {\n      json: {\n        ok: false,\n        message: 'La suma de porcentajes del plan de pagos debe ser 100%.',\n      },\n    },\n  ];\n}\n\nif (Math.abs(totalPagos - montoTotal) > 0.05) {\n  return [\n    {\n      json: {\n        ok: false,\n        message: 'La suma de montos programados debe igualar el monto total comprometido.',\n      },\n    },\n  ];\n}\n\nconst operacionId = nextId(operacionesRows, 'operacion_id', 'OP');\n\nlet pagoMax = 0;\nfor (const row of pagosRows) {\n  const match = String(row.pago_id || '').match(/PAG-(\\d+)/);\n  if (match) {\n    const number = parseInt(match[1], 10);\n    if (number > pagoMax) pagoMax = number;\n  }\n}\n\nconst seguimientoId = nextId(seguimientoRows, 'seguimiento_id', 'SEG');\n\nconst preparedOperacion = {\n  operacion_id: operacionId,\n  cliente_id: operacion.cliente_id || '',\n  fecha_registro: operacion.fecha_registro || new Date().toISOString().slice(0, 10),\n  descripcion_operacion: String(operacion.descripcion_operacion || '').trim(),\n  cantidad: operacion.cantidad || '',\n  tipo_operacion: operacion.tipo_operacion || '',\n  tipo_empresa: operacion.tipo_empresa || '',\n  responsable: operacion.responsable || '',\n  estado_operacion: operacion.estado_operacion || '',\n  nivel_certeza: operacion.nivel_certeza || '',\n  probabilidad: operacion.probabilidad || '',\n  modalidad_pago: operacion.modalidad_pago || '',\n  monto_total_comprometido: operacion.monto_total_comprometido || '',\n  monto_total_ponderado: operacion.monto_total_ponderado || '',\n  vigencia_desde: operacion.vigencia_desde || '',\n  vigencia_hasta: operacion.vigencia_hasta || '',\n  proximo_hito: '',\n  fecha_proximo_hito: '',\n  observaciones: operacion.observaciones || '',\n  estado_general: operacion.estado_general || 'Activo',\n  created_by: operacion.created_by || '',\n  created_by_name: operacion.created_by_name || '',\n  created_at: operacion.created_at || new Date().toISOString(),\n  updated_by: '',\n  updated_by_name: '',\n  updated_at: '',\n};\n\nconst pagosProgramados = pagosInput.map((pago, index) => {\n  pagoMax += 1;\n\n  const montoProgramado = toNumber(pago.monto_programado);\n\n  return {\n    pago_id: `PAG-${String(pagoMax).padStart(4, '0')}`,\n    operacion_id: operacionId,\n    cliente_id: operacion.cliente_id || '',\n    numero_pago: pago.numero_pago || index + 1,\n    concepto_pago: pago.concepto_pago || `Pago ${index + 1}`,\n    porcentaje_programado: pago.porcentaje_programado || '',\n    monto_programado: montoProgramado,\n    fecha_programada: pago.fecha_programada || '',\n    estado_pago: pago.estado_pago || 'Pendiente',\n    monto_pagado_acumulado: 0,\n    saldo_pago: montoProgramado,\n    fecha_ultimo_pago: '',\n    modalidad_pago: operacion.modalidad_pago || '',\n    observaciones: '',\n    created_by: operacion.created_by || '',\n    created_by_name: operacion.created_by_name || '',\n    created_at: operacion.created_at || new Date().toISOString(),\n    updated_by: '',\n    updated_by_name: '',\n    updated_at: '',\n  };\n});\n\nconst preparedSeguimiento = {\n  seguimiento_id: seguimientoId,\n  operacion_id: operacionId,\n  cliente_id: operacion.cliente_id || '',\n  fecha_seguimiento: operacion.fecha_registro || new Date().toISOString().slice(0, 10),\n  tipo_evento: seguimientoInicial.tipo_evento || 'Registro',\n  comentario: seguimientoInicial.comentario || 'Registro inicial de operación comercial.',\n  proximo_hito: '',\n  fecha_proximo_hito: '',\n  estado_operacion_resultante:\n    seguimientoInicial.estado_operacion_resultante || operacion.estado_operacion || '',\n  created_by: seguimientoInicial.created_by || operacion.created_by || '',\n  created_by_name: seguimientoInicial.created_by_name || operacion.created_by_name || '',\n  created_at: seguimientoInicial.created_at || operacion.created_at || new Date().toISOString(),\n};\n\nreturn [\n  {\n    json: {\n      ok: true,\n      message: 'Operación preparada correctamente.',\n      operacion: preparedOperacion,\n      pagos_programados: pagosProgramados,\n      seguimiento: preparedSeguimiento,\n    },\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        96
+      ],
+      "id": "2c59f932-9577-464d-9b5e-c9772caadc7c",
+      "name": "Code - Prepare Create Operacion"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ef4685a7-77e9-4e5f-96af-b7da9f02331f",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1456,
+        96
+      ],
+      "id": "deed2ce0-deb6-4434-bf1f-17ec118477dc",
+      "name": "Operacion OK?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1664,
+        192
+      ],
+      "id": "95eab739-d798-44d3-8b61-e1ae768817a4",
+      "name": "Respond - Create Error"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1269396866,
+          "mode": "list",
+          "cachedResultName": "Operaciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=1269396866"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operacion_id": "={{ $json.operacion.operacion_id }}",
+            "cliente_id": "={{ $json.operacion.cliente_id }}",
+            "fecha_registro": "={{ $json.operacion.fecha_registro }}",
+            "descripcion_operacion": "={{ $json.operacion.descripcion_operacion }}",
+            "cantidad": "={{ $json.operacion.cantidad }}",
+            "tipo_operacion": "={{ $json.operacion.tipo_operacion }}",
+            "tipo_empresa": "={{ $json.operacion.tipo_empresa }}",
+            "responsable": "={{ $json.operacion.responsable }}",
+            "estado_operacion": "={{ $json.operacion.estado_operacion }}",
+            "nivel_certeza": "={{ $json.operacion.nivel_certeza }}",
+            "probabilidad": "={{ $json.operacion.probabilidad }}",
+            "modalidad_pago": "={{ $json.operacion.modalidad_pago }}",
+            "monto_total_comprometido": "={{ $json.operacion.monto_total_comprometido }}",
+            "monto_total_ponderado": "={{ $json.operacion.monto_total_ponderado }}",
+            "vigencia_desde": "={{ $json.operacion.vigencia_desde }}",
+            "vigencia_hasta": "={{ $json.operacion.vigencia_hasta }}",
+            "proximo_hito": "={{ $json.operacion.proximo_hito }}",
+            "fecha_proximo_hito": "={{ $json.operacion.fecha_proximo_hito }}",
+            "observaciones": "={{ $json.operacion.observaciones }}",
+            "estado_general": "={{ $json.operacion.estado_general }}",
+            "created_by": "={{ $json.operacion.created_by }}",
+            "created_by_name": "={{ $json.operacion.created_by_name }}",
+            "created_at": "={{ $json.operacion.created_at }}",
+            "updated_by": "={{ $json.operacion.updated_by }}",
+            "updated_by_name": "={{ $json.operacion.updated_by_name }}",
+            "updated_at": "={{ $json.operacion.updated_at }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "operacion_id",
+              "displayName": "operacion_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cliente_id",
+              "displayName": "cliente_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_registro",
+              "displayName": "fecha_registro",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "descripcion_operacion",
+              "displayName": "descripcion_operacion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cantidad",
+              "displayName": "cantidad",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tipo_operacion",
+              "displayName": "tipo_operacion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tipo_empresa",
+              "displayName": "tipo_empresa",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "responsable",
+              "displayName": "responsable",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado_operacion",
+              "displayName": "estado_operacion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "nivel_certeza",
+              "displayName": "nivel_certeza",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "probabilidad",
+              "displayName": "probabilidad",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "modalidad_pago",
+              "displayName": "modalidad_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "monto_total_comprometido",
+              "displayName": "monto_total_comprometido",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "monto_total_ponderado",
+              "displayName": "monto_total_ponderado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "vigencia_desde",
+              "displayName": "vigencia_desde",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "vigencia_hasta",
+              "displayName": "vigencia_hasta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "proximo_hito",
+              "displayName": "proximo_hito",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_proximo_hito",
+              "displayName": "fecha_proximo_hito",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "observaciones",
+              "displayName": "observaciones",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado_general",
+              "displayName": "estado_general",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_by",
+              "displayName": "created_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_by_name",
+              "displayName": "created_by_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_by",
+              "displayName": "updated_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_by_name",
+              "displayName": "updated_by_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1664,
+        0
+      ],
+      "id": "7bb3de35-0260-4d30-981f-52a741147838",
+      "name": "Append row - Operaciones",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const pagos = $('Code - Prepare Create Operacion').first().json.pagos_programados || [];\n\nreturn pagos.map((pago) => ({\n  json: pago,\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1872,
+        0
+      ],
+      "id": "866dea71-5549-4ad2-a345-14f08d5f2bc1",
+      "name": "Code - Emit Pagos"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1893833913,
+          "mode": "list",
+          "cachedResultName": "Pagos_Programados",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=1893833913"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "pago_id": "={{ $json.pago_id }}",
+            "operacion_id": "={{ $json.operacion_id }}",
+            "cliente_id": "={{ $json.cliente_id }}",
+            "numero_pago": "={{ $json.numero_pago }}",
+            "concepto_pago": "={{ $json.concepto_pago }}",
+            "porcentaje_programado": "={{ $json.porcentaje_programado }}",
+            "monto_programado": "={{ $json.monto_programado }}",
+            "fecha_programada": "={{ $json.fecha_programada }}",
+            "estado_pago": "={{ $json.estado_pago }}",
+            "monto_pagado_acumulado": "={{ $json.monto_pagado_acumulado }}",
+            "saldo_pago": "={{ $json.saldo_pago }}",
+            "fecha_ultimo_pago": "={{ $json.fecha_ultimo_pago }}",
+            "modalidad_pago": "={{ $json.modalidad_pago }}",
+            "observaciones": "={{ $json.observaciones }}",
+            "created_by": "={{ $json.created_by }}",
+            "created_by_name": "={{ $json.created_by_name }}",
+            "created_at": "={{ $json.created_at }}",
+            "updated_by": "={{ $json.updated_by }}",
+            "updated_by_name": "={{ $json.updated_by_name }}",
+            "updated_at": "={{ $json.updated_at }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "pago_id",
+              "displayName": "pago_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "operacion_id",
+              "displayName": "operacion_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cliente_id",
+              "displayName": "cliente_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "numero_pago",
+              "displayName": "numero_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "concepto_pago",
+              "displayName": "concepto_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "porcentaje_programado",
+              "displayName": "porcentaje_programado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "monto_programado",
+              "displayName": "monto_programado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_programada",
+              "displayName": "fecha_programada",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado_pago",
+              "displayName": "estado_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "monto_pagado_acumulado",
+              "displayName": "monto_pagado_acumulado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "saldo_pago",
+              "displayName": "saldo_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_ultimo_pago",
+              "displayName": "fecha_ultimo_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "modalidad_pago",
+              "displayName": "modalidad_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "observaciones",
+              "displayName": "observaciones",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_by",
+              "displayName": "created_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_by_name",
+              "displayName": "created_by_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_by",
+              "displayName": "updated_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_by_name",
+              "displayName": "updated_by_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2080,
+        0
+      ],
+      "id": "6cfb1931-4a10-4faa-afc4-95342a8376a6",
+      "name": "Append rows - Pagos Programados",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const seguimiento = $('Code - Prepare Create Operacion').first().json.seguimiento;\n\nreturn [\n  {\n    json: seguimiento,\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2288,
+        0
+      ],
+      "id": "6bfe646b-924c-4006-a413-5da1decc2f29",
+      "name": "Code - Emit Seguimiento"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1884227650,
+          "mode": "list",
+          "cachedResultName": "Seguimiento",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=1884227650"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "seguimiento_id": "={{ $json.seguimiento_id }}",
+            "operacion_id": "={{ $json.operacion_id }}",
+            "cliente_id": "={{ $json.cliente_id }}",
+            "fecha_seguimiento": "={{ $json.fecha_seguimiento }}",
+            "tipo_evento": "={{ $json.tipo_evento }}",
+            "comentario": "={{ $json.comentario }}",
+            "proximo_hito": "={{ $json.proximo_hito }}",
+            "fecha_proximo_hito": "={{ $json.fecha_proximo_hito }}",
+            "estado_operacion_resultante": "={{ $json.estado_operacion_resultante }}",
+            "created_by": "={{ $json.created_by }}",
+            "created_by_name": "={{ $json.created_by_name }}",
+            "created_at": "={{ $json.created_at }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "seguimiento_id",
+              "displayName": "seguimiento_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "operacion_id",
+              "displayName": "operacion_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cliente_id",
+              "displayName": "cliente_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_seguimiento",
+              "displayName": "fecha_seguimiento",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tipo_evento",
+              "displayName": "tipo_evento",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "comentario",
+              "displayName": "comentario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "proximo_hito",
+              "displayName": "proximo_hito",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_proximo_hito",
+              "displayName": "fecha_proximo_hito",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado_operacion_resultante",
+              "displayName": "estado_operacion_resultante",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_by",
+              "displayName": "created_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_by_name",
+              "displayName": "created_by_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2496,
+        0
+      ],
+      "id": "dced3e08-ba6e-4c7f-aea4-8c7cbcea0ddf",
+      "name": "Append row - Seguimiento",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  ok: true,\n  message: 'Operación registrada correctamente.',\n  operacion: $('Code - Prepare Create Operacion').first().json.operacion,\n  pagos_programados: $('Code - Prepare Create Operacion').first().json.pagos_programados,\n  seguimiento: $('Code - Prepare Create Operacion').first().json.seguimiento\n} }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2704,
+        0
+      ],
+      "id": "81f582da-5344-4d46-8d51-21aa89f00125",
+      "name": "Respond - Create OK"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code - Normalize Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Normalize Action": {
+      "main": [
+        [
+          {
+            "node": "Switch - Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch - Action": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) - Operaciones",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get row(s) - Operaciones Create",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) - Operaciones": {
+      "main": [
+        [
+          {
+            "node": "Code - Format List Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Format List Response": {
+      "main": [
+        [
+          {
+            "node": "Respond - List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) - Operaciones Create": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) - Pagos Create",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) - Pagos Create": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) - Seguimiento Create",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) - Seguimiento Create": {
+      "main": [
+        [
+          {
+            "node": "Code - Prepare Create Operacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Prepare Create Operacion": {
+      "main": [
+        [
+          {
+            "node": "Operacion OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Operacion OK?": {
+      "main": [
+        [
+          {
+            "node": "Append row - Operaciones",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Create Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row - Operaciones": {
+      "main": [
+        [
+          {
+            "node": "Code - Emit Pagos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Emit Pagos": {
+      "main": [
+        [
+          {
+            "node": "Append rows - Pagos Programados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append rows - Pagos Programados": {
+      "main": [
+        [
+          {
+            "node": "Code - Emit Seguimiento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Emit Seguimiento": {
+      "main": [
+        [
+          {
+            "node": "Append row - Seguimiento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row - Seguimiento": {
+      "main": [
+        [
+          {
+            "node": "Respond - Create OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "50106fca-473e-4a18-8132-6cf9ad304737",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "40c3efda9d8236b5ebc3abfae04d0f01b4e1e9727745fc99fa2aa921c887d1e0"
+  },
+  "id": "QmHzn5HT8bUk2dqn",
+  "tags": []
+}
