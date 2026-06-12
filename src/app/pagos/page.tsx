@@ -326,9 +326,9 @@ function PagosContent() {
                   <th>Operación</th>
                   <th>Concepto</th>
                   <th>Fecha</th>
-                  <th>Monto</th>
-                  <th>Pagado</th>
-                  <th>Saldo</th>
+                  <th>Programado</th>
+                  <th>Recibido</th>
+                  <th>Pendiente</th>
                   <th>Estado</th>
                   <th>Acción</th>
                 </tr>

@@ -20,7 +20,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $json.body || $json || {};\n\nreturn [\n  {\n    json: {\n      action: String(body.action || '').trim(),\n      requested_by: body.requested_by || '',\n      requested_by_name: body.requested_by_name || '',\n      operacion: body.operacion || {},\n      pagos_programados: body.pagos_programados || [],\n      seguimiento_inicial: body.seguimiento_inicial || {},\n    },\n  },\n];"
+        "jsCode": "const body = $json.body || $json || {};\n\nreturn [\n  {\n    json: {\n      action: String(body.action || '').trim(),\n      requested_by: body.requested_by || '',\n      requested_by_name: body.requested_by_name || '',\n      operacion: body.operacion || {},\n      pagos_programados: body.pagos_programados || [],\n    },\n  },\n];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -70,6 +70,52 @@
                     "id": "c13f6d94-babc-4e59-9e3a-c15f4e136dc3",
                     "leftValue": "={{ $json.action }}",
                     "rightValue": "create",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "a8e1d2c3-0000-4f00-9000-000000000001",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "update",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "a8e1d2c3-0000-4f00-9000-000000000002",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "activate",
                     "operator": {
                       "type": "string",
                       "operation": "equals",
@@ -129,12 +175,106 @@
     },
     {
       "parameters": {
-        "jsCode": "const operaciones = $input\n  .all()\n  .map(item => item.json)\n  .filter(row => row.operacion_id || row.cliente_id || row.descripcion_operacion);\n\nreturn [\n  {\n    json: {\n      ok: true,\n      message: 'Operaciones obtenidas correctamente.',\n      operaciones,\n    },\n  },\n];"
+        "jsCode": "return [{ json: { ok: true } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         832,
+        -96
+      ],
+      "id": "f1a00001-0000-4000-9000-000000000001",
+      "name": "Code - List After Operaciones"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1893833913,
+          "mode": "list",
+          "cachedResultName": "Pagos_Programados",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=1893833913"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1040,
+        -96
+      ],
+      "id": "f1a00002-0000-4000-9000-000000000002",
+      "name": "Get row(s) - Pagos List",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ok: true } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        -96
+      ],
+      "id": "f1a00003-0000-4000-9000-000000000003",
+      "name": "Code - List After Pagos"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 893064930,
+          "mode": "list",
+          "cachedResultName": "Depositos",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=893064930"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1456,
+        -96
+      ],
+      "id": "f1a00004-0000-4000-9000-000000000004",
+      "name": "Get row(s) - Depositos List",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function norm(v) { return String(v == null ? '' : v).trim(); }\nfunction toNumber(value) {\n  let s = String(value == null ? '' : value);\n  s = s.split('Bs.').join('').split('Bs').join('').split(' ').join('').split(',').join('');\n  const n = Number(s);\n  return Number.isFinite(n) ? n : 0;\n}\n\nconst operaciones = $('Get row(s) - Operaciones').all().map(i => i.json).filter(r => r.operacion_id || r.cliente_id || r.descripcion_operacion);\n\nconst pagosMap = {};\nfor (const it of $('Get row(s) - Pagos List').all()) {\n  const r = it.json;\n  if (r && r.pago_id && !pagosMap[r.pago_id]) pagosMap[r.pago_id] = r;\n}\nconst pagos = Object.keys(pagosMap).map(k => pagosMap[k]);\n\nconst depositosMap = {};\nfor (const it of $('Get row(s) - Depositos List').all()) {\n  const r = it.json;\n  if (r && r.deposito_id && !depositosMap[r.deposito_id]) depositosMap[r.deposito_id] = r;\n}\nconst depositos = Object.keys(depositosMap).map(k => depositosMap[k]);\n\nconst pagosByOp = {};\nfor (const p of pagos) {\n  const id = norm(p.operacion_id);\n  if (!id) continue;\n  if (!pagosByOp[id]) pagosByOp[id] = [];\n  pagosByOp[id].push(p);\n}\n\nconst depositoOps = {};\nfor (const d of depositos) {\n  const id = norm(d.operacion_id);\n  if (id) depositoOps[id] = true;\n}\n\nconst today = new Date();\ntoday.setHours(0, 0, 0, 0);\n\nfunction estadoCobro(opPagos) {\n  if (!opPagos || !opPagos.length) return 'Sin plan';\n  let totalProg = 0;\n  let totalPag = 0;\n  let vencido = false;\n  for (const p of opPagos) {\n    const prog = toNumber(p.monto_programado);\n    const pag = toNumber(p.monto_pagado_acumulado);\n    const saldo = toNumber(p.saldo_pago);\n    totalProg += prog;\n    totalPag += pag;\n    const estado = norm(p.estado_pago);\n    const pendiente = saldo > 0 && estado !== 'Pagado';\n    if (pendiente && p.fecha_programada) {\n      const due = new Date(String(p.fecha_programada) + 'T00:00:00');\n      if (!isNaN(due.getTime()) && due < today) vencido = true;\n    }\n  }\n  if (vencido) return 'Vencido';\n  if (totalPag <= 0) return 'Pendiente';\n  if (totalProg > 0 && totalPag >= totalProg - 0.05) return 'Pagado';\n  return 'Cobro parcial';\n}\n\nfunction normalizeEstado(value) {\n  const current = String(value == null ? '' : value).trim();\n  if (current === 'Propuesta enviada') return 'Cotización enviada';\n  if (current === 'Cobro parcial') return 'Vigente';\n  if (current === 'Perdida') return 'No aprobada';\n  return current;\n}\n\nconst enriched = operaciones.map(op => {\n  const id = norm(op.operacion_id);\n  const opPagos = pagosByOp[id] || [];\n  const tienePagos = opPagos.length > 0;\n  const tieneDepositos = depositoOps[id] === true;\n  const estadoNorm = normalizeEstado(op.estado_operacion);\n  let estadoEfectivo = estadoNorm;\n  let requiereRegularizacion = false;\n  if ((tienePagos || tieneDepositos) && (estadoNorm === 'Cotización enviada' || estadoNorm === '')) {\n    estadoEfectivo = 'Vigente';\n    requiereRegularizacion = true;\n  }\n  return Object.assign({}, op, {\n    estado_operacion: estadoEfectivo,\n    tiene_pagos: tienePagos,\n    tiene_depositos: tieneDepositos,\n    estado_cobro: estadoCobro(opPagos),\n    requiere_regularizacion: requiereRegularizacion,\n  });\n});\n\nreturn [{ json: { ok: true, message: 'Operaciones obtenidas correctamente.', operaciones: enriched } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1664,
         -96
       ],
       "id": "1d187a4e-5b79-43a9-b6a1-72088ece8ed0",
@@ -149,7 +289,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1040,
+        1872,
         -96
       ],
       "id": "677a30ec-af85-47a6-958a-a646caccf65c",
@@ -225,46 +365,12 @@
     },
     {
       "parameters": {
-        "documentId": {
-          "__rl": true,
-          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
-          "mode": "list",
-          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": 1884227650,
-          "mode": "list",
-          "cachedResultName": "Seguimiento",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=1884227650"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1040,
-        96
-      ],
-      "id": "9d75f4dc-1fbe-41cc-b667-0644665ae6af",
-      "name": "Get row(s) - Seguimiento Create",
-      "alwaysOutputData": true,
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "C2ZrTaxMwTXTxvlN",
-          "name": "Google Sheets account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "const payload = $('Code - Normalize Action').first().json;\n\nconst operacion = payload.operacion || {};\nconst pagosInput = payload.pagos_programados || [];\nconst seguimientoInicial = payload.seguimiento_inicial || {};\n\nconst operacionesRows = $('Get row(s) - Operaciones Create')\n  .all()\n  .map(item => item.json)\n  .filter(row => row.operacion_id);\n\nconst pagosRows = $('Get row(s) - Pagos Create')\n  .all()\n  .map(item => item.json)\n  .filter(row => row.pago_id);\n\nconst seguimientoRows = $('Get row(s) - Seguimiento Create')\n  .all()\n  .map(item => item.json)\n  .filter(row => row.seguimiento_id);\n\nfunction nextId(rows, field, prefix) {\n  let max = 0;\n\n  for (const row of rows) {\n    const value = String(row[field] || '');\n    const match = value.match(new RegExp(`${prefix}-(\\\\d+)`));\n\n    if (match) {\n      const number = parseInt(match[1], 10);\n      if (number > max) max = number;\n    }\n  }\n\n  return `${prefix}-${String(max + 1).padStart(4, '0')}`;\n}\n\nfunction toNumber(value) {\n  const num = Number(value || 0);\n  return Number.isFinite(num) ? num : 0;\n}\n\nif (!operacion.cliente_id) {\n  return [\n    {\n      json: {\n        ok: false,\n        message: 'Debe seleccionar un cliente.',\n      },\n    },\n  ];\n}\n\nif (!String(operacion.descripcion_operacion || '').trim()) {\n  return [\n    {\n      json: {\n        ok: false,\n        message: 'La descripción de la operación es obligatoria.',\n      },\n    },\n  ];\n}\n\nif (!pagosInput.length) {\n  return [\n    {\n      json: {\n        ok: false,\n        message: 'Debe existir al menos un pago programado.',\n      },\n    },\n  ];\n}\n\nconst montoTotal = toNumber(operacion.monto_total_comprometido);\n\nconst totalPorcentaje = pagosInput.reduce(\n  (sum, pago) => sum + toNumber(pago.porcentaje_programado),\n  0\n);\n\nconst totalPagos = pagosInput.reduce(\n  (sum, pago) => sum + toNumber(pago.monto_programado),\n  0\n);\n\nif (Math.abs(totalPorcentaje - 100) > 0.01) {\n  return [\n    {\n      json: {\n        ok: false,\n        message: 'La suma de porcentajes del plan de pagos debe ser 100%.',\n      },\n    },\n  ];\n}\n\nif (Math.abs(totalPagos - montoTotal) > 0.05) {\n  return [\n    {\n      json: {\n        ok: false,\n        message: 'La suma de montos programados debe igualar el monto total comprometido.',\n      },\n    },\n  ];\n}\n\nconst operacionId = nextId(operacionesRows, 'operacion_id', 'OP');\n\nlet pagoMax = 0;\nfor (const row of pagosRows) {\n  const match = String(row.pago_id || '').match(/PAG-(\\d+)/);\n  if (match) {\n    const number = parseInt(match[1], 10);\n    if (number > pagoMax) pagoMax = number;\n  }\n}\n\nconst seguimientoId = nextId(seguimientoRows, 'seguimiento_id', 'SEG');\n\nconst preparedOperacion = {\n  operacion_id: operacionId,\n  cliente_id: operacion.cliente_id || '',\n  fecha_registro: operacion.fecha_registro || new Date().toISOString().slice(0, 10),\n  descripcion_operacion: String(operacion.descripcion_operacion || '').trim(),\n  cantidad: operacion.cantidad || '',\n  tipo_operacion: operacion.tipo_operacion || '',\n  tipo_empresa: operacion.tipo_empresa || '',\n  responsable: operacion.responsable || '',\n  estado_operacion: operacion.estado_operacion || '',\n  nivel_certeza: operacion.nivel_certeza || '',\n  probabilidad: operacion.probabilidad || '',\n  modalidad_pago: operacion.modalidad_pago || '',\n  monto_total_comprometido: operacion.monto_total_comprometido || '',\n  monto_total_ponderado: operacion.monto_total_ponderado || '',\n  vigencia_desde: operacion.vigencia_desde || '',\n  vigencia_hasta: operacion.vigencia_hasta || '',\n  proximo_hito: '',\n  fecha_proximo_hito: '',\n  observaciones: operacion.observaciones || '',\n  estado_general: operacion.estado_general || 'Activo',\n  created_by: operacion.created_by || '',\n  created_by_name: operacion.created_by_name || '',\n  created_at: operacion.created_at || new Date().toISOString(),\n  updated_by: '',\n  updated_by_name: '',\n  updated_at: '',\n};\n\nconst pagosProgramados = pagosInput.map((pago, index) => {\n  pagoMax += 1;\n\n  const montoProgramado = toNumber(pago.monto_programado);\n\n  return {\n    pago_id: `PAG-${String(pagoMax).padStart(4, '0')}`,\n    operacion_id: operacionId,\n    cliente_id: operacion.cliente_id || '',\n    numero_pago: pago.numero_pago || index + 1,\n    concepto_pago: pago.concepto_pago || `Pago ${index + 1}`,\n    porcentaje_programado: pago.porcentaje_programado || '',\n    monto_programado: montoProgramado,\n    fecha_programada: pago.fecha_programada || '',\n    estado_pago: pago.estado_pago || 'Pendiente',\n    monto_pagado_acumulado: 0,\n    saldo_pago: montoProgramado,\n    fecha_ultimo_pago: '',\n    modalidad_pago: operacion.modalidad_pago || '',\n    observaciones: '',\n    created_by: operacion.created_by || '',\n    created_by_name: operacion.created_by_name || '',\n    created_at: operacion.created_at || new Date().toISOString(),\n    updated_by: '',\n    updated_by_name: '',\n    updated_at: '',\n  };\n});\n\nconst preparedSeguimiento = {\n  seguimiento_id: seguimientoId,\n  operacion_id: operacionId,\n  cliente_id: operacion.cliente_id || '',\n  fecha_seguimiento: operacion.fecha_registro || new Date().toISOString().slice(0, 10),\n  tipo_evento: seguimientoInicial.tipo_evento || 'Registro',\n  comentario: seguimientoInicial.comentario || 'Registro inicial de operación comercial.',\n  proximo_hito: '',\n  fecha_proximo_hito: '',\n  estado_operacion_resultante:\n    seguimientoInicial.estado_operacion_resultante || operacion.estado_operacion || '',\n  created_by: seguimientoInicial.created_by || operacion.created_by || '',\n  created_by_name: seguimientoInicial.created_by_name || operacion.created_by_name || '',\n  created_at: seguimientoInicial.created_at || operacion.created_at || new Date().toISOString(),\n};\n\nreturn [\n  {\n    json: {\n      ok: true,\n      message: 'Operación preparada correctamente.',\n      operacion: preparedOperacion,\n      pagos_programados: pagosProgramados,\n      seguimiento: preparedSeguimiento,\n    },\n  },\n];"
+        "jsCode": "const payload = $('Code - Normalize Action').first().json;\n\nconst operacion = payload.operacion || {};\nconst pagosInput = payload.pagos_programados || [];\n\nconst operacionesRows = $('Get row(s) - Operaciones Create')\n  .all()\n  .map(item => item.json)\n  .filter(row => row.operacion_id);\n\nconst pagosRows = $('Get row(s) - Pagos Create')\n  .all()\n  .map(item => item.json)\n  .filter(row => row.pago_id);\n\nfunction nextId(rows, field, prefix) {\n  let max = 0;\n  const pre = prefix + '-';\n  for (const row of rows) {\n    const value = String(row[field] || '');\n    if (value.indexOf(pre) === 0) {\n      const number = parseInt(value.slice(pre.length), 10);\n      if (Number.isFinite(number) && number > max) max = number;\n    }\n  }\n  return prefix + '-' + String(max + 1).padStart(4, '0');\n}\n\nfunction toNumber(value) {\n  const num = Number(value || 0);\n  return Number.isFinite(num) ? num : 0;\n}\n\nfunction normalizeEstado(value) {\n  const current = String(value || '').trim();\n  if (current === 'Propuesta enviada') return 'Cotización enviada';\n  if (current === 'Cobro parcial') return 'Vigente';\n  if (current === 'Perdida') return 'No aprobada';\n  return current;\n}\n\nif (!operacion.cliente_id) {\n  return [{ json: { ok: false, message: 'Debe seleccionar un cliente.' } }];\n}\n\nif (!String(operacion.descripcion_operacion || '').trim()) {\n  return [{ json: { ok: false, message: 'La descripción de la operación es obligatoria.' } }];\n}\n\nconst estado = normalizeEstado(operacion.estado_operacion);\nconst estadoCreate = estado === 'Vigente' ? 'Vigente' : 'Cotización enviada';\nconst esVigente = estadoCreate === 'Vigente';\nconst montoTotal = toNumber(operacion.monto_total_comprometido);\n\nlet pagosValidos = [];\n\nif (esVigente) {\n  if (!montoTotal || montoTotal <= 0) {\n    return [{ json: { ok: false, message: 'El monto debe ser mayor a 0 para una operación vigente.' } }];\n  }\n  if (!pagosInput.length) {\n    return [{ json: { ok: false, message: 'Debe existir al menos un pago programado para una operación vigente.' } }];\n  }\n  const totalPorcentaje = pagosInput.reduce((sum, p) => sum + toNumber(p.porcentaje_programado), 0);\n  if (Math.abs(totalPorcentaje - 100) > 0.01) {\n    return [{ json: { ok: false, message: 'La suma de porcentajes del plan de pagos debe ser 100%.' } }];\n  }\n  const totalPagos = pagosInput.reduce((sum, p) => sum + toNumber(p.monto_programado), 0);\n  if (Math.abs(totalPagos - montoTotal) > 0.05) {\n    return [{ json: { ok: false, message: 'La suma de montos programados debe igualar el monto total.' } }];\n  }\n  pagosValidos = pagosInput;\n}\n\nconst operacionId = nextId(operacionesRows, 'operacion_id', 'OP');\n\nlet pagoMax = 0;\nfor (const row of pagosRows) {\n  const value = String(row.pago_id || '');\n  if (value.indexOf('PAG-') === 0) {\n    const number = parseInt(value.slice(4), 10);\n    if (Number.isFinite(number) && number > pagoMax) pagoMax = number;\n  }\n}\n\nconst preparedOperacion = {\n  operacion_id: operacionId,\n  cliente_id: operacion.cliente_id || '',\n  fecha_registro: operacion.fecha_registro || new Date().toISOString().slice(0, 10),\n  descripcion_operacion: String(operacion.descripcion_operacion || '').trim(),\n  cantidad: operacion.cantidad || '',\n  tipo_operacion: operacion.tipo_operacion || '',\n  tipo_empresa: operacion.tipo_empresa || '',\n  responsable: operacion.responsable || '',\n  estado_operacion: estadoCreate,\n  nivel_certeza: operacion.nivel_certeza || '',\n  probabilidad: operacion.probabilidad || '',\n  modalidad_pago: '',\n  monto_total_comprometido: operacion.monto_total_comprometido || '',\n  monto_total_ponderado: operacion.monto_total_ponderado || '',\n  vigencia_desde: operacion.vigencia_desde || '',\n  vigencia_hasta: operacion.vigencia_hasta || '',\n  proximo_hito: '',\n  fecha_proximo_hito: '',\n  observaciones: operacion.observaciones || '',\n  estado_general: operacion.estado_general || 'Activo',\n  created_by: operacion.created_by || '',\n  created_by_name: operacion.created_by_name || '',\n  created_at: operacion.created_at || new Date().toISOString(),\n  updated_by: '',\n  updated_by_name: '',\n  updated_at: '',\n};\n\nconst pagosProgramados = pagosValidos.map((pago, index) => {\n  pagoMax += 1;\n  const montoProgramado = toNumber(pago.monto_programado);\n  return {\n    pago_id: 'PAG-' + String(pagoMax).padStart(4, '0'),\n    operacion_id: operacionId,\n    cliente_id: operacion.cliente_id || '',\n    numero_pago: pago.numero_pago || index + 1,\n    concepto_pago: pago.concepto_pago || ('Pago ' + (index + 1)),\n    porcentaje_programado: pago.porcentaje_programado || '',\n    monto_programado: montoProgramado,\n    fecha_programada: pago.fecha_programada || '',\n    estado_pago: pago.estado_pago || 'Pendiente',\n    monto_pagado_acumulado: 0,\n    saldo_pago: montoProgramado,\n    fecha_ultimo_pago: '',\n    modalidad_pago: '',\n    observaciones: '',\n    created_by: operacion.created_by || '',\n    created_by_name: operacion.created_by_name || '',\n    created_at: operacion.created_at || new Date().toISOString(),\n    updated_by: '',\n    updated_by_name: '',\n    updated_at: '',\n  };\n});\n\nreturn [{\n  json: {\n    ok: true,\n    message: 'Operación preparada correctamente.',\n    operacion: preparedOperacion,\n    pagos_programados: pagosProgramados,\n  },\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1248,
+        1040,
         96
       ],
       "id": "2c59f932-9577-464d-9b5e-c9772caadc7c",
@@ -298,7 +404,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        1456,
+        1248,
         96
       ],
       "id": "deed2ce0-deb6-4434-bf1f-17ec118477dc",
@@ -313,8 +419,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1664,
-        192
+        1456,
+        288
       ],
       "id": "95eab739-d798-44d3-8b61-e1ae768817a4",
       "name": "Respond - Create Error"
@@ -611,8 +717,8 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        1664,
-        0
+        1456,
+        96
       ],
       "id": "7bb3de35-0260-4d30-981f-52a741147838",
       "name": "Append row - Operaciones",
@@ -622,6 +728,39 @@
           "name": "Google Sheets account"
         }
       }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b2c00001-0000-4000-9000-000000000051",
+              "leftValue": "={{ $('Code - Prepare Create Operacion').first().json.pagos_programados.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1664,
+        96
+      ],
+      "id": "f1a00005-0000-4000-9000-000000000005",
+      "name": "Pagos Create?"
     },
     {
       "parameters": {
@@ -882,20 +1021,21 @@
     },
     {
       "parameters": {
-        "jsCode": "const seguimiento = $('Code - Prepare Create Operacion').first().json.seguimiento;\n\nreturn [\n  {\n    json: seguimiento,\n  },\n];"
+        "respondWith": "json",
+        "responseBody": "={{ {\n  ok: true,\n  message: 'Operación registrada correctamente.',\n  operacion: $('Code - Prepare Create Operacion').first().json.operacion,\n  pagos_programados: $('Code - Prepare Create Operacion').first().json.pagos_programados\n} }}",
+        "options": {}
       },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
       "position": [
         2288,
         0
       ],
-      "id": "6bfe646b-924c-4006-a413-5da1decc2f29",
-      "name": "Code - Emit Seguimiento"
+      "id": "81f582da-5344-4d46-8d51-21aa89f00125",
+      "name": "Respond - Create OK"
     },
     {
       "parameters": {
-        "operation": "append",
         "documentId": {
           "__rl": true,
           "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
@@ -905,38 +1045,250 @@
         },
         "sheetName": {
           "__rl": true,
-          "value": 1884227650,
+          "value": 1269396866,
           "mode": "list",
-          "cachedResultName": "Seguimiento",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=1884227650"
+          "cachedResultName": "Operaciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=1269396866"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        624,
+        360
+      ],
+      "id": "f1a00010-0000-4000-9000-000000000010",
+      "name": "Get row(s) - Operaciones Update",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ok: true } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        360
+      ],
+      "id": "f1a00011-0000-4000-9000-000000000011",
+      "name": "Code - Update After Operaciones"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1893833913,
+          "mode": "list",
+          "cachedResultName": "Pagos_Programados",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=1893833913"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1040,
+        360
+      ],
+      "id": "f1a00012-0000-4000-9000-000000000012",
+      "name": "Get row(s) - Pagos Update",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ok: true } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        360
+      ],
+      "id": "f1a00013-0000-4000-9000-000000000013",
+      "name": "Code - Update After Pagos"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 893064930,
+          "mode": "list",
+          "cachedResultName": "Depositos",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=893064930"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1456,
+        360
+      ],
+      "id": "f1a00014-0000-4000-9000-000000000014",
+      "name": "Get row(s) - Depositos Update",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $('Code - Normalize Action').first().json;\nconst operacion = payload.operacion || {};\nconst pagosInput = payload.pagos_programados || [];\n\nfunction norm(v) { return String(v == null ? '' : v).trim(); }\n\nfunction toNumber(value) {\n  let s = String(value == null ? '' : value);\n  s = s.split('Bs.').join('').split('Bs').join('').split(' ').join('').split(',').join('');\n  const n = Number(s);\n  return Number.isFinite(n) ? n : 0;\n}\n\nfunction normalizeEstado(value) {\n  const current = norm(value);\n  if (current === 'Propuesta enviada') return 'Cotización enviada';\n  if (current === 'Cobro parcial') return 'Vigente';\n  if (current === 'Perdida') return 'No aprobada';\n  return current;\n}\n\nconst operacionesRows = $('Get row(s) - Operaciones Update').all().map(i => i.json).filter(r => r.operacion_id);\nconst pagosRows = $('Get row(s) - Pagos Update').all().map(i => i.json).filter(r => r.pago_id);\nconst depositosRows = $('Get row(s) - Depositos Update').all().map(i => i.json).filter(r => r.deposito_id);\n\nconst operacionId = norm(operacion.operacion_id);\nif (!operacionId) {\n  return [{ json: { ok: false, message: 'Falta el identificador de la operación.' } }];\n}\n\nconst targetRow = operacionesRows.find(r => norm(r.operacion_id) === operacionId);\nif (!targetRow) {\n  return [{ json: { ok: false, message: 'No se encontró la operación a actualizar.' } }];\n}\n\nconst rowNumber = targetRow.row_number || targetRow.rowNumber || targetRow.__rowNumber || '';\n\nconst seenPagos = {};\nlet tienePagos = false;\nfor (const r of pagosRows) {\n  if (norm(r.operacion_id) === operacionId) {\n    const pid = norm(r.pago_id);\n    if (pid && !seenPagos[pid]) { seenPagos[pid] = true; tienePagos = true; }\n  }\n}\n\nconst seenDepositos = {};\nlet tieneDepositos = false;\nfor (const r of depositosRows) {\n  if (norm(r.operacion_id) === operacionId) {\n    const did = norm(r.deposito_id);\n    if (did && !seenDepositos[did]) { seenDepositos[did] = true; tieneDepositos = true; }\n  }\n}\n\nconst estadoNuevo = normalizeEstado(operacion.estado_operacion);\n\nconst montoNuevo = toNumber(operacion.monto_total_comprometido);\nconst montoActual = toNumber(targetRow.monto_total_comprometido);\n\nif (tieneDepositos && Math.abs(montoNuevo - montoActual) > 0.05) {\n  return [{ json: { ok: false, message: 'La operación tiene depósitos registrados; no se puede modificar el monto total.' } }];\n}\n\nlet pagosToCreate = [];\n\n// PUT (update) nunca crea pagos: el plan se crea al aprobar la cotización (activate).\nif (false) {\n  if (!montoNuevo || montoNuevo <= 0) {\n    return [{ json: { ok: false, message: 'El monto debe ser mayor a 0 para una operación vigente.' } }];\n  }\n  if (!pagosInput.length) {\n    return [{ json: { ok: false, message: 'Debe definir al menos un pago programado.' } }];\n  }\n  const totalPorcentaje = pagosInput.reduce((sum, p) => sum + toNumber(p.porcentaje_programado), 0);\n  if (Math.abs(totalPorcentaje - 100) > 0.01) {\n    return [{ json: { ok: false, message: 'La suma de porcentajes del plan de pagos debe ser 100%.' } }];\n  }\n  const totalPagos = pagosInput.reduce((sum, p) => sum + toNumber(p.monto_programado), 0);\n  if (Math.abs(totalPagos - montoNuevo) > 0.05) {\n    return [{ json: { ok: false, message: 'La suma de montos programados debe igualar el monto total.' } }];\n  }\n\n  let pagoMax = 0;\n  for (const r of pagosRows) {\n    const value = String(r.pago_id || '');\n    if (value.indexOf('PAG-') === 0) {\n      const number = parseInt(value.slice(4), 10);\n      if (Number.isFinite(number) && number > pagoMax) pagoMax = number;\n    }\n  }\n\n  pagosToCreate = pagosInput.map((pago, index) => {\n    pagoMax += 1;\n    const montoProgramado = toNumber(pago.monto_programado);\n    return {\n      pago_id: 'PAG-' + String(pagoMax).padStart(4, '0'),\n      operacion_id: operacionId,\n      cliente_id: operacion.cliente_id || targetRow.cliente_id || '',\n      numero_pago: pago.numero_pago || index + 1,\n      concepto_pago: pago.concepto_pago || ('Pago ' + (index + 1)),\n      porcentaje_programado: pago.porcentaje_programado || '',\n      monto_programado: montoProgramado,\n      fecha_programada: pago.fecha_programada || '',\n      estado_pago: pago.estado_pago || 'Pendiente',\n      monto_pagado_acumulado: 0,\n      saldo_pago: montoProgramado,\n      fecha_ultimo_pago: '',\n      modalidad_pago: operacion.modalidad_pago || '',\n      observaciones: '',\n      created_by: operacion.updated_by || operacion.created_by || '',\n      created_by_name: operacion.updated_by_name || operacion.created_by_name || '',\n      created_at: new Date().toISOString(),\n      updated_by: '',\n      updated_by_name: '',\n      updated_at: '',\n    };\n  });\n}\n\nfunction pick(newVal, oldVal) {\n  return (newVal === undefined || newVal === null || newVal === '') ? (oldVal || '') : newVal;\n}\n\nconst updatedOperacion = {\n  row_number: rowNumber,\n  operacion_id: operacionId,\n  cliente_id: operacion.cliente_id || targetRow.cliente_id || '',\n  fecha_registro: pick(operacion.fecha_registro, targetRow.fecha_registro),\n  descripcion_operacion: norm(operacion.descripcion_operacion) || targetRow.descripcion_operacion || '',\n  cantidad: pick(operacion.cantidad, targetRow.cantidad),\n  tipo_operacion: operacion.tipo_operacion || targetRow.tipo_operacion || '',\n  tipo_empresa: operacion.tipo_empresa || targetRow.tipo_empresa || '',\n  responsable: operacion.responsable || targetRow.responsable || '',\n  estado_operacion: targetRow.estado_operacion || '',\n  nivel_certeza: pick(operacion.nivel_certeza, targetRow.nivel_certeza),\n  probabilidad: pick(operacion.probabilidad, targetRow.probabilidad),\n  modalidad_pago: operacion.modalidad_pago || targetRow.modalidad_pago || '',\n  monto_total_comprometido: pick(operacion.monto_total_comprometido, targetRow.monto_total_comprometido),\n  monto_total_ponderado: pick(operacion.monto_total_ponderado, targetRow.monto_total_ponderado),\n  vigencia_desde: (operacion.vigencia_desde === undefined || operacion.vigencia_desde === null) ? (targetRow.vigencia_desde || '') : operacion.vigencia_desde,\n  vigencia_hasta: (operacion.vigencia_hasta === undefined || operacion.vigencia_hasta === null) ? (targetRow.vigencia_hasta || '') : operacion.vigencia_hasta,\n  proximo_hito: targetRow.proximo_hito || '',\n  fecha_proximo_hito: targetRow.fecha_proximo_hito || '',\n  observaciones: (operacion.observaciones === undefined || operacion.observaciones === null) ? (targetRow.observaciones || '') : operacion.observaciones,\n  estado_general: operacion.estado_general || targetRow.estado_general || 'Activo',\n  created_by: targetRow.created_by || '',\n  created_by_name: targetRow.created_by_name || '',\n  created_at: targetRow.created_at || '',\n  updated_by: operacion.updated_by || '',\n  updated_by_name: operacion.updated_by_name || '',\n  updated_at: operacion.updated_at || new Date().toISOString(),\n};\n\nreturn [{\n  json: {\n    ok: true,\n    message: pagosToCreate.length ? 'Operación actualizada y plan de pagos creado.' : 'Operación actualizada correctamente.',\n    operacion: updatedOperacion,\n    pagos_programados: pagosToCreate,\n    pagos_to_create: pagosToCreate.length > 0,\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1664,
+        360
+      ],
+      "id": "f1a00015-0000-4000-9000-000000000015",
+      "name": "Code - Prepare Update"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b2c00002-0000-4000-9000-000000000052",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1872,
+        360
+      ],
+      "id": "f1a00016-0000-4000-9000-000000000016",
+      "name": "Update OK?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2080,
+        528
+      ],
+      "id": "f1a00017-0000-4000-9000-000000000017",
+      "name": "Respond - Update Error"
+    },
+    {
+      "parameters": {
+        "jsCode": "const op = $('Code - Prepare Update').first().json.operacion;\nreturn [{ json: op }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        288
+      ],
+      "id": "f1a00023-0000-4000-9000-000000000023",
+      "name": "Code - Emit Operacion Update"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1269396866,
+          "mode": "list",
+          "cachedResultName": "Operaciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=1269396866"
         },
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "seguimiento_id": "={{ $json.seguimiento_id }}",
+            "row_number": "={{ $json.row_number }}",
             "operacion_id": "={{ $json.operacion_id }}",
             "cliente_id": "={{ $json.cliente_id }}",
-            "fecha_seguimiento": "={{ $json.fecha_seguimiento }}",
-            "tipo_evento": "={{ $json.tipo_evento }}",
-            "comentario": "={{ $json.comentario }}",
+            "fecha_registro": "={{ $json.fecha_registro }}",
+            "descripcion_operacion": "={{ $json.descripcion_operacion }}",
+            "cantidad": "={{ $json.cantidad }}",
+            "tipo_operacion": "={{ $json.tipo_operacion }}",
+            "tipo_empresa": "={{ $json.tipo_empresa }}",
+            "responsable": "={{ $json.responsable }}",
+            "estado_operacion": "={{ $json.estado_operacion }}",
+            "nivel_certeza": "={{ $json.nivel_certeza }}",
+            "probabilidad": "={{ $json.probabilidad }}",
+            "modalidad_pago": "={{ $json.modalidad_pago }}",
+            "monto_total_comprometido": "={{ $json.monto_total_comprometido }}",
+            "monto_total_ponderado": "={{ $json.monto_total_ponderado }}",
+            "vigencia_desde": "={{ $json.vigencia_desde }}",
+            "vigencia_hasta": "={{ $json.vigencia_hasta }}",
             "proximo_hito": "={{ $json.proximo_hito }}",
             "fecha_proximo_hito": "={{ $json.fecha_proximo_hito }}",
-            "estado_operacion_resultante": "={{ $json.estado_operacion_resultante }}",
+            "observaciones": "={{ $json.observaciones }}",
+            "estado_general": "={{ $json.estado_general }}",
             "created_by": "={{ $json.created_by }}",
             "created_by_name": "={{ $json.created_by_name }}",
-            "created_at": "={{ $json.created_at }}"
+            "created_at": "={{ $json.created_at }}",
+            "updated_by": "={{ $json.updated_by }}",
+            "updated_by_name": "={{ $json.updated_by_name }}",
+            "updated_at": "={{ $json.updated_at }}"
           },
-          "matchingColumns": [],
+          "matchingColumns": [
+            "row_number"
+          ],
           "schema": [
-            {
-              "id": "seguimiento_id",
-              "displayName": "seguimiento_id",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
-            },
             {
               "id": "operacion_id",
               "displayName": "operacion_id",
@@ -956,8 +1308,8 @@
               "canBeUsedToMatch": true
             },
             {
-              "id": "fecha_seguimiento",
-              "displayName": "fecha_seguimiento",
+              "id": "fecha_registro",
+              "displayName": "fecha_registro",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -965,8 +1317,8 @@
               "canBeUsedToMatch": true
             },
             {
-              "id": "tipo_evento",
-              "displayName": "tipo_evento",
+              "id": "descripcion_operacion",
+              "displayName": "descripcion_operacion",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -974,8 +1326,107 @@
               "canBeUsedToMatch": true
             },
             {
-              "id": "comentario",
-              "displayName": "comentario",
+              "id": "cantidad",
+              "displayName": "cantidad",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tipo_operacion",
+              "displayName": "tipo_operacion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tipo_empresa",
+              "displayName": "tipo_empresa",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "responsable",
+              "displayName": "responsable",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado_operacion",
+              "displayName": "estado_operacion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "nivel_certeza",
+              "displayName": "nivel_certeza",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "probabilidad",
+              "displayName": "probabilidad",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "modalidad_pago",
+              "displayName": "modalidad_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "monto_total_comprometido",
+              "displayName": "monto_total_comprometido",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "monto_total_ponderado",
+              "displayName": "monto_total_ponderado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "vigencia_desde",
+              "displayName": "vigencia_desde",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "vigencia_hasta",
+              "displayName": "vigencia_hasta",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -1001,8 +1452,17 @@
               "canBeUsedToMatch": true
             },
             {
-              "id": "estado_operacion_resultante",
-              "displayName": "estado_operacion_resultante",
+              "id": "observaciones",
+              "displayName": "observaciones",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado_general",
+              "displayName": "estado_general",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -1035,6 +1495,1114 @@
               "display": true,
               "type": "string",
               "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_by",
+              "displayName": "updated_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_by_name",
+              "displayName": "updated_by_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2288,
+        288
+      ],
+      "id": "f1a00018-0000-4000-9000-000000000018",
+      "name": "Update row - Operaciones",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b2c00003-0000-4000-9000-000000000053",
+              "leftValue": "={{ $('Code - Prepare Update').first().json.pagos_to_create }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2496,
+        288
+      ],
+      "id": "f1a00019-0000-4000-9000-000000000019",
+      "name": "Crear Pagos Update?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const pagos = $('Code - Prepare Update').first().json.pagos_programados || [];\n\nreturn pagos.map((pago) => ({\n  json: pago,\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2704,
+        216
+      ],
+      "id": "f1a00020-0000-4000-9000-000000000020",
+      "name": "Code - Emit Pagos Update"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1893833913,
+          "mode": "list",
+          "cachedResultName": "Pagos_Programados",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=1893833913"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "pago_id": "={{ $json.pago_id }}",
+            "operacion_id": "={{ $json.operacion_id }}",
+            "cliente_id": "={{ $json.cliente_id }}",
+            "numero_pago": "={{ $json.numero_pago }}",
+            "concepto_pago": "={{ $json.concepto_pago }}",
+            "porcentaje_programado": "={{ $json.porcentaje_programado }}",
+            "monto_programado": "={{ $json.monto_programado }}",
+            "fecha_programada": "={{ $json.fecha_programada }}",
+            "estado_pago": "={{ $json.estado_pago }}",
+            "monto_pagado_acumulado": "={{ $json.monto_pagado_acumulado }}",
+            "saldo_pago": "={{ $json.saldo_pago }}",
+            "fecha_ultimo_pago": "={{ $json.fecha_ultimo_pago }}",
+            "modalidad_pago": "={{ $json.modalidad_pago }}",
+            "observaciones": "={{ $json.observaciones }}",
+            "created_by": "={{ $json.created_by }}",
+            "created_by_name": "={{ $json.created_by_name }}",
+            "created_at": "={{ $json.created_at }}",
+            "updated_by": "={{ $json.updated_by }}",
+            "updated_by_name": "={{ $json.updated_by_name }}",
+            "updated_at": "={{ $json.updated_at }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "pago_id",
+              "displayName": "pago_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "operacion_id",
+              "displayName": "operacion_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cliente_id",
+              "displayName": "cliente_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "numero_pago",
+              "displayName": "numero_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "concepto_pago",
+              "displayName": "concepto_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "porcentaje_programado",
+              "displayName": "porcentaje_programado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "monto_programado",
+              "displayName": "monto_programado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_programada",
+              "displayName": "fecha_programada",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado_pago",
+              "displayName": "estado_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "monto_pagado_acumulado",
+              "displayName": "monto_pagado_acumulado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "saldo_pago",
+              "displayName": "saldo_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_ultimo_pago",
+              "displayName": "fecha_ultimo_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "modalidad_pago",
+              "displayName": "modalidad_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "observaciones",
+              "displayName": "observaciones",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_by",
+              "displayName": "created_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_by_name",
+              "displayName": "created_by_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_by",
+              "displayName": "updated_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_by_name",
+              "displayName": "updated_by_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2912,
+        216
+      ],
+      "id": "f1a00021-0000-4000-9000-000000000021",
+      "name": "Append rows - Pagos Update",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  ok: true,\n  message: $('Code - Prepare Update').first().json.message,\n  operacion: $('Code - Prepare Update').first().json.operacion,\n  pagos_programados: $('Code - Prepare Update').first().json.pagos_programados\n} }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        3120,
+        288
+      ],
+      "id": "f1a00022-0000-4000-9000-000000000022",
+      "name": "Respond - Update OK"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1269396866,
+          "mode": "list",
+          "cachedResultName": "Operaciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=1269396866"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        624,
+        624
+      ],
+      "id": "f2a00001-0000-4000-9000-000000000001",
+      "name": "Get row(s) - Operaciones Activate",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1893833913,
+          "mode": "list",
+          "cachedResultName": "Pagos_Programados",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=1893833913"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        832,
+        624
+      ],
+      "id": "f2a00002-0000-4000-9000-000000000002",
+      "name": "Get row(s) - Pagos Activate",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 893064930,
+          "mode": "list",
+          "cachedResultName": "Depositos",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=893064930"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1040,
+        624
+      ],
+      "id": "f2a00003-0000-4000-9000-000000000003",
+      "name": "Get row(s) - Depositos Activate",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $('Code - Normalize Action').first().json;\nconst operacion = payload.operacion || {};\nconst pagosInput = payload.pagos_programados || [];\n\nfunction norm(v) { return String(v == null ? '' : v).trim(); }\nfunction toNumber(value) {\n  let s = String(value == null ? '' : value);\n  s = s.split('Bs.').join('').split('Bs').join('').split(' ').join('').split(',').join('');\n  const n = Number(s);\n  return Number.isFinite(n) ? n : 0;\n}\n\nconst operacionesRows = $('Get row(s) - Operaciones Activate').all().map(i => i.json).filter(r => r.operacion_id);\nconst pagosRows = $('Get row(s) - Pagos Activate').all().map(i => i.json).filter(r => r.pago_id);\nconst depositosRows = $('Get row(s) - Depositos Activate').all().map(i => i.json).filter(r => r.deposito_id);\n\nconst operacionId = norm(operacion.operacion_id);\nif (!operacionId) {\n  return [{ json: { ok: false, message: 'Falta el identificador de la operación a activar.' } }];\n}\n\nconst targetRow = operacionesRows.find(r => norm(r.operacion_id) === operacionId);\nif (!targetRow) {\n  return [{ json: { ok: false, message: 'No se encontró la operación a activar.' } }];\n}\n\nconst rowNumber = targetRow.row_number || targetRow.rowNumber || targetRow.__rowNumber || '';\n\nconst montoNuevo = toNumber(operacion.monto_total_comprometido);\nif (!montoNuevo || montoNuevo <= 0) {\n  return [{ json: { ok: false, message: 'El monto aprobado debe ser mayor a 0.' } }];\n}\n\nconst vigenciaDesde = norm(operacion.vigencia_desde);\nconst vigenciaHasta = norm(operacion.vigencia_hasta);\nif (!vigenciaDesde || !vigenciaHasta) {\n  return [{ json: { ok: false, message: 'Debe indicar la vigencia desde y la vigencia hasta.' } }];\n}\nif (vigenciaHasta < vigenciaDesde) {\n  return [{ json: { ok: false, message: 'La vigencia hasta no puede ser anterior a la vigencia desde.' } }];\n}\n\nconst seenPagos = {};\nconst existentes = [];\nfor (const r of pagosRows) {\n  if (norm(r.operacion_id) === operacionId) {\n    const pid = norm(r.pago_id);\n    if (pid && !seenPagos[pid]) { seenPagos[pid] = true; existentes.push(r); }\n  }\n}\nconst tienePagos = existentes.length > 0;\n\nlet pagosToCreate = [];\n\nif (!tienePagos) {\n  if (!pagosInput.length) {\n    return [{ json: { ok: false, message: 'Debe definir al menos un pago programado.' } }];\n  }\n  for (const p of pagosInput) {\n    if (!norm(p.fecha_programada)) {\n      return [{ json: { ok: false, message: 'Cada pago programado debe tener una fecha programada.' } }];\n    }\n  }\n  const totalPorcentaje = pagosInput.reduce((sum, p) => sum + toNumber(p.porcentaje_programado), 0);\n  if (Math.abs(totalPorcentaje - 100) > 0.01) {\n    return [{ json: { ok: false, message: 'La suma de porcentajes del plan de pagos debe ser 100%.' } }];\n  }\n  const totalPagos = pagosInput.reduce((sum, p) => sum + toNumber(p.monto_programado), 0);\n  if (Math.abs(totalPagos - montoNuevo) > 0.05) {\n    return [{ json: { ok: false, message: 'La suma de montos programados debe igualar el monto total.' } }];\n  }\n  let pagoMax = 0;\n  for (const r of pagosRows) {\n    const value = String(r.pago_id || '');\n    if (value.indexOf('PAG-') === 0) {\n      const number = parseInt(value.slice(4), 10);\n      if (Number.isFinite(number) && number > pagoMax) pagoMax = number;\n    }\n  }\n  pagosToCreate = pagosInput.map((pago, index) => {\n    pagoMax += 1;\n    const montoProgramado = toNumber(pago.monto_programado);\n    return {\n      pago_id: 'PAG-' + String(pagoMax).padStart(4, '0'),\n      operacion_id: operacionId,\n      cliente_id: targetRow.cliente_id || '',\n      numero_pago: pago.numero_pago || index + 1,\n      concepto_pago: pago.concepto_pago || ('Pago ' + (index + 1)),\n      porcentaje_programado: pago.porcentaje_programado || '',\n      monto_programado: montoProgramado,\n      fecha_programada: pago.fecha_programada || '',\n      estado_pago: pago.estado_pago || 'Pendiente',\n      monto_pagado_acumulado: 0,\n      saldo_pago: montoProgramado,\n      fecha_ultimo_pago: '',\n      modalidad_pago: '',\n      observaciones: '',\n      created_by: operacion.updated_by || '',\n      created_by_name: operacion.updated_by_name || '',\n      created_at: operacion.updated_at || new Date().toISOString(),\n      updated_by: '',\n      updated_by_name: '',\n      updated_at: '',\n    };\n  });\n}\n\nconst updatedOperacion = {\n  row_number: rowNumber,\n  operacion_id: operacionId,\n  cliente_id: targetRow.cliente_id || '',\n  fecha_registro: targetRow.fecha_registro || '',\n  descripcion_operacion: targetRow.descripcion_operacion || '',\n  cantidad: targetRow.cantidad || '',\n  tipo_operacion: targetRow.tipo_operacion || '',\n  tipo_empresa: targetRow.tipo_empresa || '',\n  responsable: targetRow.responsable || '',\n  estado_operacion: 'Vigente',\n  nivel_certeza: targetRow.nivel_certeza || '',\n  probabilidad: targetRow.probabilidad || '',\n  modalidad_pago: targetRow.modalidad_pago || '',\n  monto_total_comprometido: montoNuevo,\n  monto_total_ponderado: targetRow.monto_total_ponderado || '',\n  vigencia_desde: vigenciaDesde,\n  vigencia_hasta: vigenciaHasta,\n  proximo_hito: targetRow.proximo_hito || '',\n  fecha_proximo_hito: targetRow.fecha_proximo_hito || '',\n  observaciones: targetRow.observaciones || '',\n  estado_general: targetRow.estado_general || 'Activo',\n  created_by: targetRow.created_by || '',\n  created_by_name: targetRow.created_by_name || '',\n  created_at: targetRow.created_at || '',\n  updated_by: operacion.updated_by || '',\n  updated_by_name: operacion.updated_by_name || '',\n  updated_at: operacion.updated_at || new Date().toISOString(),\n};\n\nconst tieneDepositos = depositosRows.some(r => norm(r.operacion_id) === operacionId);\n\nconst enriquecida = Object.assign({}, updatedOperacion, { tiene_pagos: true, tiene_depositos: tieneDepositos, estado_cobro: 'Pendiente', requiere_regularizacion: false });\n\nreturn [{ json: { ok: true, message: tienePagos ? 'Operación activada (el plan de pagos ya existía).' : 'Operación activada y plan de pagos creado.', operacion: updatedOperacion, operacion_enriquecida: enriquecida, pagos_programados: pagosToCreate, pagos_to_create: pagosToCreate.length > 0 } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        624
+      ],
+      "id": "f2a00004-0000-4000-9000-000000000004",
+      "name": "Code - Prepare Activate"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b2c00004-0000-4000-9000-000000000054",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1456,
+        624
+      ],
+      "id": "f2a00005-0000-4000-9000-000000000005",
+      "name": "Activate OK?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1664,
+        792
+      ],
+      "id": "f2a00006-0000-4000-9000-000000000006",
+      "name": "Respond - Activate Error"
+    },
+    {
+      "parameters": {
+        "jsCode": "const op = $('Code - Prepare Activate').first().json.operacion;\nreturn [{ json: op }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1664,
+        552
+      ],
+      "id": "f2a00007-0000-4000-9000-000000000007",
+      "name": "Code - Emit Operacion Activate"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1269396866,
+          "mode": "list",
+          "cachedResultName": "Operaciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=1269396866"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $json.row_number }}",
+            "operacion_id": "={{ $json.operacion_id }}",
+            "cliente_id": "={{ $json.cliente_id }}",
+            "fecha_registro": "={{ $json.fecha_registro }}",
+            "descripcion_operacion": "={{ $json.descripcion_operacion }}",
+            "cantidad": "={{ $json.cantidad }}",
+            "tipo_operacion": "={{ $json.tipo_operacion }}",
+            "tipo_empresa": "={{ $json.tipo_empresa }}",
+            "responsable": "={{ $json.responsable }}",
+            "estado_operacion": "={{ $json.estado_operacion }}",
+            "nivel_certeza": "={{ $json.nivel_certeza }}",
+            "probabilidad": "={{ $json.probabilidad }}",
+            "modalidad_pago": "={{ $json.modalidad_pago }}",
+            "monto_total_comprometido": "={{ $json.monto_total_comprometido }}",
+            "monto_total_ponderado": "={{ $json.monto_total_ponderado }}",
+            "vigencia_desde": "={{ $json.vigencia_desde }}",
+            "vigencia_hasta": "={{ $json.vigencia_hasta }}",
+            "proximo_hito": "={{ $json.proximo_hito }}",
+            "fecha_proximo_hito": "={{ $json.fecha_proximo_hito }}",
+            "observaciones": "={{ $json.observaciones }}",
+            "estado_general": "={{ $json.estado_general }}",
+            "created_by": "={{ $json.created_by }}",
+            "created_by_name": "={{ $json.created_by_name }}",
+            "created_at": "={{ $json.created_at }}",
+            "updated_by": "={{ $json.updated_by }}",
+            "updated_by_name": "={{ $json.updated_by_name }}",
+            "updated_at": "={{ $json.updated_at }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "operacion_id",
+              "displayName": "operacion_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cliente_id",
+              "displayName": "cliente_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_registro",
+              "displayName": "fecha_registro",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "descripcion_operacion",
+              "displayName": "descripcion_operacion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cantidad",
+              "displayName": "cantidad",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tipo_operacion",
+              "displayName": "tipo_operacion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tipo_empresa",
+              "displayName": "tipo_empresa",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "responsable",
+              "displayName": "responsable",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado_operacion",
+              "displayName": "estado_operacion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "nivel_certeza",
+              "displayName": "nivel_certeza",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "probabilidad",
+              "displayName": "probabilidad",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "modalidad_pago",
+              "displayName": "modalidad_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "monto_total_comprometido",
+              "displayName": "monto_total_comprometido",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "monto_total_ponderado",
+              "displayName": "monto_total_ponderado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "vigencia_desde",
+              "displayName": "vigencia_desde",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "vigencia_hasta",
+              "displayName": "vigencia_hasta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "proximo_hito",
+              "displayName": "proximo_hito",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_proximo_hito",
+              "displayName": "fecha_proximo_hito",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "observaciones",
+              "displayName": "observaciones",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado_general",
+              "displayName": "estado_general",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_by",
+              "displayName": "created_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_by_name",
+              "displayName": "created_by_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_by",
+              "displayName": "updated_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_by_name",
+              "displayName": "updated_by_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1872,
+        552
+      ],
+      "id": "f2a00008-0000-4000-9000-000000000008",
+      "name": "Update row - Operaciones Activate",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b2c00005-0000-4000-9000-000000000055",
+              "leftValue": "={{ $('Code - Prepare Activate').first().json.pagos_to_create }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2080,
+        552
+      ],
+      "id": "f2a00009-0000-4000-9000-000000000009",
+      "name": "Crear Pagos Activate?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const pagos = $('Code - Prepare Activate').first().json.pagos_programados || [];\n\nreturn pagos.map((pago) => ({\n  json: pago,\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2288,
+        480
+      ],
+      "id": "f2a00010-0000-4000-9000-000000000010",
+      "name": "Code - Emit Pagos Activate"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1893833913,
+          "mode": "list",
+          "cachedResultName": "Pagos_Programados",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=1893833913"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "pago_id": "={{ $json.pago_id }}",
+            "operacion_id": "={{ $json.operacion_id }}",
+            "cliente_id": "={{ $json.cliente_id }}",
+            "numero_pago": "={{ $json.numero_pago }}",
+            "concepto_pago": "={{ $json.concepto_pago }}",
+            "porcentaje_programado": "={{ $json.porcentaje_programado }}",
+            "monto_programado": "={{ $json.monto_programado }}",
+            "fecha_programada": "={{ $json.fecha_programada }}",
+            "estado_pago": "={{ $json.estado_pago }}",
+            "monto_pagado_acumulado": "={{ $json.monto_pagado_acumulado }}",
+            "saldo_pago": "={{ $json.saldo_pago }}",
+            "fecha_ultimo_pago": "={{ $json.fecha_ultimo_pago }}",
+            "modalidad_pago": "={{ $json.modalidad_pago }}",
+            "observaciones": "={{ $json.observaciones }}",
+            "created_by": "={{ $json.created_by }}",
+            "created_by_name": "={{ $json.created_by_name }}",
+            "created_at": "={{ $json.created_at }}",
+            "updated_by": "={{ $json.updated_by }}",
+            "updated_by_name": "={{ $json.updated_by_name }}",
+            "updated_at": "={{ $json.updated_at }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "pago_id",
+              "displayName": "pago_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "operacion_id",
+              "displayName": "operacion_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cliente_id",
+              "displayName": "cliente_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "numero_pago",
+              "displayName": "numero_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "concepto_pago",
+              "displayName": "concepto_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "porcentaje_programado",
+              "displayName": "porcentaje_programado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "monto_programado",
+              "displayName": "monto_programado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_programada",
+              "displayName": "fecha_programada",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado_pago",
+              "displayName": "estado_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "monto_pagado_acumulado",
+              "displayName": "monto_pagado_acumulado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "saldo_pago",
+              "displayName": "saldo_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_ultimo_pago",
+              "displayName": "fecha_ultimo_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "modalidad_pago",
+              "displayName": "modalidad_pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "observaciones",
+              "displayName": "observaciones",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_by",
+              "displayName": "created_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_by_name",
+              "displayName": "created_by_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_by",
+              "displayName": "updated_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_by_name",
+              "displayName": "updated_by_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
             }
           ],
           "attemptToConvertTypes": false,
@@ -1046,10 +2614,10 @@
       "typeVersion": 4.7,
       "position": [
         2496,
-        0
+        480
       ],
-      "id": "dced3e08-ba6e-4c7f-aea4-8c7cbcea0ddf",
-      "name": "Append row - Seguimiento",
+      "id": "f2a00011-0000-4000-9000-000000000011",
+      "name": "Append rows - Pagos Activate",
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "C2ZrTaxMwTXTxvlN",
@@ -1060,17 +2628,17 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ {\n  ok: true,\n  message: 'Operación registrada correctamente.',\n  operacion: $('Code - Prepare Create Operacion').first().json.operacion,\n  pagos_programados: $('Code - Prepare Create Operacion').first().json.pagos_programados,\n  seguimiento: $('Code - Prepare Create Operacion').first().json.seguimiento\n} }}",
+        "responseBody": "={{ {\n  ok: true,\n  message: $('Code - Prepare Activate').first().json.message,\n  operacion: $('Code - Prepare Activate').first().json.operacion_enriquecida,\n  pagos_programados: $('Code - Prepare Activate').first().json.pagos_programados\n} }}",
         "options": {}
       },
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
         2704,
-        0
+        552
       ],
-      "id": "81f582da-5344-4d46-8d51-21aa89f00125",
-      "name": "Respond - Create OK"
+      "id": "f2a00012-0000-4000-9000-000000000012",
+      "name": "Respond - Activate OK"
     }
   ],
   "pinData": {},
@@ -1112,10 +2680,68 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Get row(s) - Operaciones Update",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get row(s) - Operaciones Activate",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Get row(s) - Operaciones": {
+      "main": [
+        [
+          {
+            "node": "Code - List After Operaciones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - List After Operaciones": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) - Pagos List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) - Pagos List": {
+      "main": [
+        [
+          {
+            "node": "Code - List After Pagos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - List After Pagos": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) - Depositos List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) - Depositos List": {
       "main": [
         [
           {
@@ -1149,17 +2775,6 @@
       ]
     },
     "Get row(s) - Pagos Create": {
-      "main": [
-        [
-          {
-            "node": "Get row(s) - Seguimiento Create",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get row(s) - Seguimiento Create": {
       "main": [
         [
           {
@@ -1203,7 +2818,25 @@
       "main": [
         [
           {
+            "node": "Pagos Create?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pagos Create?": {
+      "main": [
+        [
+          {
             "node": "Code - Emit Pagos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Create OK",
             "type": "main",
             "index": 0
           }
@@ -1225,29 +2858,277 @@
       "main": [
         [
           {
-            "node": "Code - Emit Seguimiento",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code - Emit Seguimiento": {
-      "main": [
-        [
-          {
-            "node": "Append row - Seguimiento",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Append row - Seguimiento": {
-      "main": [
-        [
-          {
             "node": "Respond - Create OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) - Operaciones Update": {
+      "main": [
+        [
+          {
+            "node": "Code - Update After Operaciones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Update After Operaciones": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) - Pagos Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) - Pagos Update": {
+      "main": [
+        [
+          {
+            "node": "Code - Update After Pagos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Update After Pagos": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) - Depositos Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) - Depositos Update": {
+      "main": [
+        [
+          {
+            "node": "Code - Prepare Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Prepare Update": {
+      "main": [
+        [
+          {
+            "node": "Update OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update OK?": {
+      "main": [
+        [
+          {
+            "node": "Code - Emit Operacion Update",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Update Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Emit Operacion Update": {
+      "main": [
+        [
+          {
+            "node": "Update row - Operaciones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row - Operaciones": {
+      "main": [
+        [
+          {
+            "node": "Crear Pagos Update?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Pagos Update?": {
+      "main": [
+        [
+          {
+            "node": "Code - Emit Pagos Update",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Update OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Emit Pagos Update": {
+      "main": [
+        [
+          {
+            "node": "Append rows - Pagos Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append rows - Pagos Update": {
+      "main": [
+        [
+          {
+            "node": "Respond - Update OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) - Operaciones Activate": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) - Pagos Activate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) - Pagos Activate": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) - Depositos Activate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) - Depositos Activate": {
+      "main": [
+        [
+          {
+            "node": "Code - Prepare Activate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Prepare Activate": {
+      "main": [
+        [
+          {
+            "node": "Activate OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Activate OK?": {
+      "main": [
+        [
+          {
+            "node": "Code - Emit Operacion Activate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Activate Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Emit Operacion Activate": {
+      "main": [
+        [
+          {
+            "node": "Update row - Operaciones Activate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row - Operaciones Activate": {
+      "main": [
+        [
+          {
+            "node": "Crear Pagos Activate?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Pagos Activate?": {
+      "main": [
+        [
+          {
+            "node": "Code - Emit Pagos Activate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Activate OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Emit Pagos Activate": {
+      "main": [
+        [
+          {
+            "node": "Append rows - Pagos Activate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append rows - Pagos Activate": {
+      "main": [
+        [
+          {
+            "node": "Respond - Activate OK",
             "type": "main",
             "index": 0
           }
