@@ -301,7 +301,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const payload = $('Code - Normalize Action').first().json.deposito || {};\n\nconst pagoRows = $('Get row(s) - Pago by ID')\n  .all()\n  .map(item => item.json)\n  .filter(row => row.pago_id);\n\nconst depositosRows = $('Get row(s) - Depositos')\n  .all()\n  .map(item => item.json)\n  .filter(row => row.deposito_id);\n\nfunction toNumber(value) {\n  const clean = String(value || '')\n    .replace(/Bs\\.?/gi, '')\n    .replace(/\\s/g, '')\n    .replace(/,/g, '');\n\n  const num = Number(clean);\n  return Number.isFinite(num) ? num : 0;\n}\n\nfunction nextDepositoId(rows) {\n  let max = 0;\n\n  for (const row of rows) {\n    const value = String(row.deposito_id || '');\n    const match = value.match(/DEP-(\\d+)/);\n\n    if (match) {\n      const number = parseInt(match[1], 10);\n      if (number > max) max = number;\n    }\n  }\n\n  return `DEP-${String(max + 1).padStart(4, '0')}`;\n}\n\nconst pago = pagoRows[0];\n\nif (!pago) {\n  return [\n    {\n      json: {\n        ok: false,\n        message: 'No se encontró el pago programado seleccionado.',\n      },\n    },\n  ];\n}\n\nconst montoDepositado = toNumber(payload.monto_depositado);\nconst montoProgramado = toNumber(pago.monto_programado);\nconst montoPagadoActual = toNumber(pago.monto_pagado_acumulado);\nconst saldoActual = toNumber(pago.saldo_pago);\n\nif (!payload.fecha_deposito) {\n  return [\n    {\n      json: {\n        ok: false,\n        message: 'La fecha de depósito es obligatoria.',\n      },\n    },\n  ];\n}\n\nif (montoDepositado <= 0) {\n  return [\n    {\n      json: {\n        ok: false,\n        message: 'El monto depositado debe ser mayor a 0.',\n      },\n    },\n  ];\n}\n\nif (montoDepositado > saldoActual) {\n  return [\n    {\n      json: {\n        ok: false,\n        message: 'El monto depositado no puede ser mayor al saldo pendiente.',\n      },\n    },\n  ];\n}\n\nconst nuevoMontoPagado = montoPagadoActual + montoDepositado;\nconst nuevoSaldo = Number((montoProgramado - nuevoMontoPagado).toFixed(2));\n\nlet nuevoEstado = 'Pendiente';\n\nif (nuevoSaldo <= 0) {\n  nuevoEstado = 'Pagado';\n} else if (nuevoMontoPagado > 0) {\n  nuevoEstado = 'Pagado parcial';\n}\n\nconst deposito = {\n  deposito_id: nextDepositoId(depositosRows),\n  pago_id: payload.pago_id || '',\n  operacion_id: payload.operacion_id || pago.operacion_id || '',\n  cliente_id: payload.cliente_id || pago.cliente_id || '',\n  fecha_deposito: payload.fecha_deposito || '',\n  monto_depositado: montoDepositado,\n  modalidad_pago: payload.modalidad_pago || '',\n  nro_comprobante: payload.nro_comprobante || '',\n  observacion: payload.observacion || '',\n  created_by: payload.created_by || '',\n  created_by_name: payload.created_by_name || '',\n  created_at: payload.created_at || new Date().toISOString(),\n};\n\nconst pagoActualizado = {\n  ...pago,\n\n  row_number: pago.row_number || pago.rowNumber || pago.__rowNumber || '',\n\n  pago_id: pago.pago_id || '',\n  operacion_id: pago.operacion_id || '',\n  cliente_id: pago.cliente_id || '',\n  numero_pago: pago.numero_pago || '',\n  concepto_pago: pago.concepto_pago || '',\n  porcentaje_programado: pago.porcentaje_programado || '',\n  monto_programado: montoProgramado,\n  fecha_programada: pago.fecha_programada || '',\n\n  estado_pago: nuevoEstado,\n  monto_pagado_acumulado: Number(nuevoMontoPagado.toFixed(2)),\n  saldo_pago: nuevoSaldo < 0 ? 0 : nuevoSaldo,\n  fecha_ultimo_pago: payload.fecha_deposito || '',\n\n  modalidad_pago: pago.modalidad_pago || payload.modalidad_pago || '',\n  observaciones: pago.observaciones || '',\n\n  created_by: pago.created_by || '',\n  created_by_name: pago.created_by_name || '',\n  created_at: pago.created_at || '',\n\n  updated_by: payload.created_by || '',\n  updated_by_name: payload.created_by_name || '',\n  updated_at: payload.created_at || new Date().toISOString(),\n};\n\nreturn [\n  {\n    json: {\n      ok: true,\n      message: 'Depósito preparado correctamente.',\n      deposito,\n      pago: pagoActualizado,\n    },\n  },\n];"
+        "jsCode": "const payload = $('Code - Normalize Action').first().json.deposito || {};\n\nconst pagoRows = $('Get row(s) - Pago by ID')\n  .all()\n  .map(item => item.json)\n  .filter(row => row.pago_id);\n\nconst depositosRows = $('Get row(s) - Depositos')\n  .all()\n  .map(item => item.json)\n  .filter(row => row.deposito_id);\n\nconst operacionesRows = $('Get row(s) - Operaciones Deposito')\n  .all()\n  .map(item => item.json)\n  .filter(row => row.operacion_id);\n\nfunction toNumber(value) {\n  const clean = String(value || '')\n    .replace(/Bs\\.?/gi, '')\n    .replace(/\\s/g, '')\n    .replace(/,/g, '');\n\n  const num = Number(clean);\n  return Number.isFinite(num) ? num : 0;\n}\n\nfunction nextDepositoId(rows) {\n  let max = 0;\n\n  for (const row of rows) {\n    const value = String(row.deposito_id || '');\n    const match = value.match(/DEP-(\\d+)/);\n\n    if (match) {\n      const number = parseInt(match[1], 10);\n      if (number > max) max = number;\n    }\n  }\n\n  return `DEP-${String(max + 1).padStart(4, '0')}`;\n}\n\nconst pago = pagoRows[0];\n\nif (!pago) {\n  return [\n    {\n      json: {\n        ok: false,\n        message: 'No se encontró el pago programado seleccionado.',\n      },\n    },\n  ];\n}\n\nconst montoDepositado = toNumber(payload.monto_depositado);\nconst montoProgramado = toNumber(pago.monto_programado);\nconst montoPagadoActual = toNumber(pago.monto_pagado_acumulado);\nconst saldoActual = toNumber(pago.saldo_pago);\n\nif (!payload.fecha_deposito) {\n  return [\n    {\n      json: {\n        ok: false,\n        message: 'La fecha de depósito es obligatoria.',\n      },\n    },\n  ];\n}\n\nif (montoDepositado <= 0) {\n  return [\n    {\n      json: {\n        ok: false,\n        message: 'El monto depositado debe ser mayor a 0.',\n      },\n    },\n  ];\n}\n\nif (montoDepositado > saldoActual) {\n  return [\n    {\n      json: {\n        ok: false,\n        message: 'El monto depositado no puede ser mayor al saldo pendiente.',\n      },\n    },\n  ];\n}\n\nconst nuevoMontoPagado = montoPagadoActual + montoDepositado;\nconst nuevoSaldo = Number((montoProgramado - nuevoMontoPagado).toFixed(2));\n\nlet nuevoEstado = 'Pendiente';\n\nif (nuevoSaldo <= 0) {\n  nuevoEstado = 'Pagado';\n} else if (nuevoMontoPagado > 0) {\n  nuevoEstado = 'Pagado parcial';\n}\n\nconst deposito = {\n  deposito_id: nextDepositoId(depositosRows),\n  pago_id: payload.pago_id || '',\n  operacion_id: payload.operacion_id || pago.operacion_id || '',\n  cliente_id: payload.cliente_id || pago.cliente_id || '',\n  fecha_deposito: payload.fecha_deposito || '',\n  monto_depositado: montoDepositado,\n  modalidad_pago: payload.modalidad_pago || '',\n  nro_comprobante: payload.nro_comprobante || '',\n  observacion: payload.observacion || '',\n  created_by: payload.created_by || '',\n  created_by_name: payload.created_by_name || '',\n  created_at: payload.created_at || new Date().toISOString(),\n};\n\nconst pagoActualizado = {\n  ...pago,\n\n  row_number: pago.row_number || pago.rowNumber || pago.__rowNumber || '',\n\n  pago_id: pago.pago_id || '',\n  operacion_id: pago.operacion_id || '',\n  cliente_id: pago.cliente_id || '',\n  numero_pago: pago.numero_pago || '',\n  concepto_pago: pago.concepto_pago || '',\n  porcentaje_programado: pago.porcentaje_programado || '',\n  monto_programado: montoProgramado,\n  fecha_programada: pago.fecha_programada || '',\n\n  estado_pago: nuevoEstado,\n  monto_pagado_acumulado: Number(nuevoMontoPagado.toFixed(2)),\n  saldo_pago: nuevoSaldo < 0 ? 0 : nuevoSaldo,\n  fecha_ultimo_pago: payload.fecha_deposito || '',\n\n  modalidad_pago: pago.modalidad_pago || payload.modalidad_pago || '',\n  observaciones: pago.observaciones || '',\n\n  created_by: pago.created_by || '',\n  created_by_name: pago.created_by_name || '',\n  created_at: pago.created_at || '',\n\n  updated_by: payload.created_by || '',\n  updated_by_name: payload.created_by_name || '',\n  updated_at: payload.created_at || new Date().toISOString(),\n};\n\nfunction normEstado(value) {\n  const c = String(value == null ? '' : value).trim();\n  if (c === 'Propuesta enviada') return 'Cotización enviada';\n  if (c === 'Cobro parcial') return 'Vigente';\n  if (c === 'Perdida') return 'No aprobada';\n  return c;\n}\n\nconst opId = String(payload.operacion_id || pago.operacion_id || '').trim();\nconst opRow = operacionesRows.find(r => String(r.operacion_id || '').trim() === opId);\nlet operacionUpdate = null;\nlet actualizarOperacion = false;\nif (opRow && normEstado(opRow.estado_operacion) !== 'Vigente') {\n  actualizarOperacion = true;\n  operacionUpdate = Object.assign({}, opRow, {\n    row_number: opRow.row_number || opRow.rowNumber || opRow.__rowNumber || '',\n    estado_operacion: 'Vigente',\n    updated_by: payload.created_by || '',\n    updated_by_name: payload.created_by_name || '',\n    updated_at: payload.created_at || new Date().toISOString(),\n  });\n}\n\nreturn [\n  {\n    json: {\n      ok: true,\n      message: 'Depósito preparado correctamente.',\n      deposito,\n      pago: pagoActualizado,\n      operacion_update: operacionUpdate,\n      actualizar_operacion: actualizarOperacion,\n    },\n  },\n];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -810,6 +810,195 @@
       ],
       "id": "63ec6115-9a24-4cd0-88d9-b30cbd4d22f6",
       "name": "Respond - Deposito OK"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1269396866,
+          "mode": "list",
+          "cachedResultName": "Operaciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=1269396866"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1040,
+        240
+      ],
+      "id": "f3a00001-0000-4000-9000-000000000001",
+      "name": "Get row(s) - Operaciones Deposito",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f3c00001-0000-4000-9000-000000000051",
+              "leftValue": "={{ $('Code - Prepare Deposito').first().json.actualizar_operacion }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2128,
+        240
+      ],
+      "id": "f3a00002-0000-4000-9000-000000000002",
+      "name": "Operacion Vigente?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const op = $('Code - Prepare Deposito').first().json.operacion_update;\nreturn [{ json: op }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2336,
+        336
+      ],
+      "id": "f3a00003-0000-4000-9000-000000000003",
+      "name": "Code - Emit Operacion Vigente"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1269396866,
+          "mode": "list",
+          "cachedResultName": "Operaciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=1269396866"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $json.row_number }}",
+            "operacion_id": "={{ $json.operacion_id }}",
+            "estado_operacion": "={{ $json.estado_operacion }}",
+            "updated_by": "={{ $json.updated_by }}",
+            "updated_by_name": "={{ $json.updated_by_name }}",
+            "updated_at": "={{ $json.updated_at }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "operacion_id",
+              "displayName": "operacion_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado_operacion",
+              "displayName": "estado_operacion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_by",
+              "displayName": "updated_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_by_name",
+              "displayName": "updated_by_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2544,
+        336
+      ],
+      "id": "f3a00004-0000-4000-9000-000000000004",
+      "name": "Update row - Operaciones",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -913,6 +1102,17 @@
       "main": [
         [
           {
+            "node": "Get row(s) - Operaciones Deposito",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) - Operaciones Deposito": {
+      "main": [
+        [
+          {
             "node": "Code - Prepare Deposito",
             "type": "main",
             "index": 0
@@ -972,6 +1172,46 @@
       ]
     },
     "Update row - Pagos Programados": {
+      "main": [
+        [
+          {
+            "node": "Operacion Vigente?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Operacion Vigente?": {
+      "main": [
+        [
+          {
+            "node": "Code - Emit Operacion Vigente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Deposito OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Emit Operacion Vigente": {
+      "main": [
+        [
+          {
+            "node": "Update row - Operaciones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row - Operaciones": {
       "main": [
         [
           {

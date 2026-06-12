@@ -256,6 +256,60 @@ export interface MarcarIngresoPayload {
 // ============================================
 export type NivelCerteza = 'Alta' | 'Media' | 'Baja';
 
+/**
+ * Tipos de operación disponibles para nuevas operaciones.
+ * Se eliminaron 'Cotización' y 'Otro': la situación de cotización ahora se
+ * representa con el estado comercial, no con el tipo. Los registros históricos
+ * con tipos no válidos se conservan, pero al editar se exige reseleccionar.
+ */
+export const TIPO_OPERACION_OPTIONS = [
+  'Contrato',
+  'Adjudicación',
+  'Venta institucional',
+] as const;
+
+export type TipoOperacion = typeof TIPO_OPERACION_OPTIONS[number];
+
+/** Modo del formulario de operaciones. */
+export type FormMode = 'create' | 'edit' | 'activate';
+
+/** Estados comerciales nuevos (estado de la operación, no financiero). */
+export const ESTADO_COMERCIAL_OPTIONS = [
+  'Cotización enviada',
+  'En evaluación',
+  'Vigente',
+  'No aprobada',
+  'Anulada',
+  'Cerrada',
+] as const;
+
+export type EstadoComercial = typeof ESTADO_COMERCIAL_OPTIONS[number];
+
+/** Estado de cobro derivado de Pagos_Programados y Depositos (no se guarda en Operaciones). */
+export const ESTADO_COBRO_OPTIONS = [
+  'Sin plan',
+  'Pendiente',
+  'Cobro parcial',
+  'Pagado',
+  'Vencido',
+] as const;
+
+export type EstadoCobro = typeof ESTADO_COBRO_OPTIONS[number];
+
+/**
+ * Normaliza el estado comercial para presentación y para guardar al editar.
+ * Mapea valores antiguos a los nuevos sin tocar datos históricos en carga.
+ */
+export function normalizeEstadoComercial(value: string | undefined): string {
+  const current = String(value || '').trim();
+
+  if (current === 'Propuesta enviada') return 'Cotización enviada';
+  if (current === 'Cobro parcial') return 'Vigente';
+  if (current === 'Perdida') return 'No aprobada';
+
+  return current;
+}
+
 export interface PagoProgramadoForm {
   numero_pago: number;
   concepto_pago: string;
@@ -276,15 +330,25 @@ export interface Operacion {
   tipo_empresa: string;
   responsable: string;
   estado_operacion: string;
-  nivel_certeza: NivelCerteza;
-  probabilidad: number;
-  modalidad_pago: string;
+  nivel_certeza?: NivelCerteza;
+  probabilidad?: number;
+  /** Opcional: la modalidad real se selecciona al registrar el pago, no aquí. */
+  modalidad_pago?: string;
   monto_total_comprometido: number;
   monto_total_ponderado?: number;
   vigencia_desde?: string;
   vigencia_hasta?: string;
   observaciones?: string;
   estado_general?: string;
+  /** Derivados del listado (calculados en n8n desde Pagos_Programados/Depositos). */
+  tiene_pagos?: boolean;
+  tiene_depositos?: boolean;
+  estado_cobro?: string;
+  /**
+   * Marcado por n8n en `list`: la fila histórica figura como "Cotización enviada"
+   * pero ya tiene pagos o depósitos, por lo que su estado efectivo es "Vigente".
+   */
+  requiere_regularizacion?: boolean;
   created_by?: string;
   created_by_name?: string;
   created_at?: string;
@@ -302,15 +366,35 @@ export interface OperacionCreatePayload {
   tipo_empresa: string;
   responsable: string;
   estado_operacion: string;
-  nivel_certeza: NivelCerteza;
-  probabilidad: number;
-  modalidad_pago: string;
+  nivel_certeza?: NivelCerteza;
+  probabilidad?: number;
+  /** Opcional: en nuevas operaciones se envía vacía. */
+  modalidad_pago?: string;
   monto_total_comprometido: number;
-  monto_total_ponderado: number;
+  monto_total_ponderado?: number;
   vigencia_desde?: string;
   vigencia_hasta?: string;
   observaciones?: string;
   estado_general?: string;
+  pagos_programados: PagoProgramadoForm[];
+}
+
+export interface OperacionUpdatePayload extends OperacionCreatePayload {
+  operacion_id: string;
+  updated_by?: string;
+  updated_by_name?: string;
+  updated_at?: string;
+}
+
+/**
+ * Payload para aprobar/activar una cotización (PATCH /api/operaciones).
+ * Solo transporta lo necesario para volver Vigente una operación y crear su plan.
+ */
+export interface OperacionActivarPayload {
+  operacion_id: string;
+  monto_total_comprometido: number;
+  vigencia_desde: string;
+  vigencia_hasta: string;
   pagos_programados: PagoProgramadoForm[];
 }
 

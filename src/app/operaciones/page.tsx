@@ -4,14 +4,18 @@ import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import type {
   Cliente,
-  NivelCerteza,
+  FormMode,
   Operacion,
+  OperacionActivarPayload,
   OperacionCreatePayload,
+  OperacionUpdatePayload,
   PagoProgramadoForm,
 } from '@/types';
+import { TIPO_OPERACION_OPTIONS, normalizeEstadoComercial } from '@/types';
 import Link from 'next/link';
 
 type PlanPagos = '1' | '2' | '3' | '4' | 'personalizado';
+type SituacionInicial = 'cotizacion' | 'vigente';
 
 const initialPagos: PagoProgramadoForm[] = [
   {
@@ -32,24 +36,15 @@ const initialForm: OperacionCreatePayload = {
   tipo_operacion: 'Contrato',
   tipo_empresa: 'Institucional',
   responsable: 'Ejecutivo comercial',
-  estado_operacion: 'Propuesta enviada',
-  nivel_certeza: 'Alta',
-  probabilidad: 0.9,
-  modalidad_pago: 'SIGEP',
+  estado_operacion: 'Cotización enviada',
+  modalidad_pago: '',
   monto_total_comprometido: 0,
-  monto_total_ponderado: 0,
   vigencia_desde: '',
   vigencia_hasta: '',
   observaciones: '',
   estado_general: 'Activo',
   pagos_programados: initialPagos,
 };
-
-function probabilityFromCerteza(value: NivelCerteza) {
-  if (value === 'Alta') return 0.9;
-  if (value === 'Media') return 0.6;
-  return 0.3;
-}
 
 function formatCurrency(value: number | string | undefined) {
   const number = Number(value || 0);
@@ -59,6 +54,17 @@ function formatCurrency(value: number | string | undefined) {
     currency: 'BOB',
     minimumFractionDigits: 2,
   }).format(number);
+}
+
+/**
+ * Devuelve el tipo si es uno de los válidos actuales; en caso contrario ''.
+ * No se mapean automáticamente los tipos históricos: al editar, un tipo no
+ * válido deja el selector vacío y obliga a reseleccionar uno válido.
+ */
+function normalizeTipoOperacion(value: string | undefined): string {
+  const current = String(value || '').trim();
+
+  return (TIPO_OPERACION_OPTIONS as readonly string[]).includes(current) ? current : '';
 }
 
 function buildPagosByPlan(plan: PlanPagos, montoTotal: number): PagoProgramadoForm[] {
@@ -108,10 +114,15 @@ export default function OperacionesPage() {
   const [form, setForm] = useState<OperacionCreatePayload>(initialForm);
   const [planPagos, setPlanPagos] = useState<PlanPagos>('1');
   const [showForm, setShowForm] = useState(false);
+  const [formMode, setFormMode] = useState<FormMode>('create');
+  const [situacionInicial, setSituacionInicial] = useState<SituacionInicial>('cotizacion');
+  const [editingOperacion, setEditingOperacion] = useState<Operacion | null>(null);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+
+  const editingId = editingOperacion?.operacion_id ?? null;
 
   async function loadData() {
     setLoading(true);
@@ -169,22 +180,55 @@ export default function OperacionesPage() {
         operacion.cliente_nombre,
         operacion.descripcion_operacion,
         operacion.responsable,
-        operacion.estado_operacion,
-        operacion.nivel_certeza,
+        normalizeEstadoComercial(operacion.estado_operacion),
+        operacion.estado_cobro,
       ]
         .filter(Boolean)
         .some((field) => String(field).toLowerCase().includes(value))
     );
   }, [operacionesConCliente, search]);
 
-  const totalComprometido = operaciones.reduce(
-    (sum, operacion) => sum + Number(operacion.monto_total_comprometido || 0),
-    0
-  );
-
-  const operacionesActivas = operaciones.filter(
-    (operacion) => operacion.estado_general !== 'Inactivo' && operacion.estado_operacion !== 'Perdida'
+  const operacionesVigentes = operaciones.filter(
+    (operacion) => normalizeEstadoComercial(operacion.estado_operacion) === 'Vigente'
   ).length;
+
+  const montoVigente = operaciones.reduce((sum, operacion) => {
+    const estado = normalizeEstadoComercial(operacion.estado_operacion);
+    return estado === 'Vigente' || estado === 'Cerrada'
+      ? sum + Number(operacion.monto_total_comprometido || 0)
+      : sum;
+  }, 0);
+
+  const isCreate = formMode === 'create';
+  const isEdit = formMode === 'edit';
+  const isActivate = formMode === 'activate';
+
+  const crearComoVigente = isCreate && situacionInicial === 'vigente';
+  // Exige plan completo (monto > 0, vigencias y pagos): al crear como vigente o al activar.
+  const exigeContrato = crearComoVigente || isActivate;
+
+  const estadoComercial = normalizeEstadoComercial(form.estado_operacion);
+  const esVigente = estadoComercial === 'Vigente';
+  const esCerrada = estadoComercial === 'Cerrada';
+
+  const bloquearMonto = isEdit && Boolean(editingOperacion?.tiene_depositos);
+  const mostrarVigencias = exigeContrato || (isEdit && (esVigente || esCerrada));
+  const mostrarPlanEditable = exigeContrato;
+  const montoRequerido = exigeContrato;
+
+  const montoLabel = isActivate
+    ? 'Monto aprobado (Bs.) *'
+    : crearComoVigente
+    ? 'Monto de la operación (Bs.) *'
+    : isCreate
+    ? 'Monto de la cotización (Bs.)'
+    : 'Monto de la operación (Bs.)';
+
+  const formTitle = isActivate
+    ? 'Aprobar cotización'
+    : isEdit
+    ? 'Editar operación'
+    : 'Nueva operación';
 
   function updateFormField<K extends keyof OperacionCreatePayload>(
     field: K,
@@ -196,17 +240,8 @@ export default function OperacionesPage() {
         [field]: value,
       };
 
-      if (field === 'nivel_certeza') {
-        const probabilidad = probabilityFromCerteza(value as NivelCerteza);
-        next.probabilidad = probabilidad;
-        next.monto_total_ponderado = Number(
-          (Number(next.monto_total_comprometido || 0) * probabilidad).toFixed(2)
-        );
-      }
-
       if (field === 'monto_total_comprometido') {
         const monto = Number(value || 0);
-        next.monto_total_ponderado = Number((monto * Number(next.probabilidad || 0)).toFixed(2));
 
         if (planPagos !== 'personalizado') {
           next.pagos_programados = buildPagosByPlan(planPagos, monto);
@@ -214,6 +249,28 @@ export default function OperacionesPage() {
       }
 
       return next;
+    });
+  }
+
+  function updateSituacionInicial(value: SituacionInicial) {
+    setSituacionInicial(value);
+
+    setForm((current) => {
+      if (value === 'vigente') {
+        return {
+          ...current,
+          estado_operacion: 'Vigente',
+          pagos_programados:
+            planPagos === 'personalizado'
+              ? current.pagos_programados
+              : buildPagosByPlan(planPagos, Number(current.monto_total_comprometido || 0)),
+        };
+      }
+
+      return {
+        ...current,
+        estado_operacion: 'Cotización enviada',
+      };
     });
   }
 
@@ -301,8 +358,189 @@ export default function OperacionesPage() {
     0
   );
 
+  function resetForm() {
+    setForm(initialForm);
+    setPlanPagos('1');
+    setEditingOperacion(null);
+    setFormMode('create');
+    setSituacionInicial('cotizacion');
+  }
+
+  /** Valida un plan completo de operación vigente. Devuelve el error o null. */
+  function validateVigente(): string | null {
+    if (!form.monto_total_comprometido || Number(form.monto_total_comprometido) <= 0) {
+      return 'El monto de la operación debe ser mayor a 0.';
+    }
+
+    if (!form.vigencia_desde || !form.vigencia_hasta) {
+      return 'Debe indicar la vigencia desde y la vigencia hasta.';
+    }
+
+    if (form.vigencia_hasta < form.vigencia_desde) {
+      return 'La vigencia hasta no puede ser anterior a la vigencia desde.';
+    }
+
+    if (form.pagos_programados.length === 0) {
+      return 'Debe definir al menos un pago programado.';
+    }
+
+    if (form.pagos_programados.some((pago) => !pago.fecha_programada)) {
+      return 'Cada pago programado debe tener una fecha programada.';
+    }
+
+    if (Math.abs(totalPorcentaje - 100) > 0.01) {
+      return 'La suma de porcentajes del plan de pagos debe ser 100%.';
+    }
+
+    if (Math.abs(totalPagos - Number(form.monto_total_comprometido || 0)) > 0.05) {
+      return 'La suma de montos programados debe igualar el monto total.';
+    }
+
+    return null;
+  }
+
+  function startEdit(operacion: Operacion) {
+    setFormMode('edit');
+    setEditingOperacion(operacion);
+    setForm({
+      cliente_id: operacion.cliente_id || '',
+      fecha_registro: operacion.fecha_registro || new Date().toISOString().slice(0, 10),
+      descripcion_operacion: operacion.descripcion_operacion || '',
+      cantidad: Number(operacion.cantidad || 0),
+      tipo_operacion: normalizeTipoOperacion(operacion.tipo_operacion),
+      tipo_empresa: operacion.tipo_empresa || 'Institucional',
+      responsable: operacion.responsable || 'Ejecutivo comercial',
+      estado_operacion: normalizeEstadoComercial(operacion.estado_operacion) || 'Cotización enviada',
+      modalidad_pago: '',
+      monto_total_comprometido: Number(operacion.monto_total_comprometido || 0),
+      vigencia_desde: operacion.vigencia_desde || '',
+      vigencia_hasta: operacion.vigencia_hasta || '',
+      observaciones: operacion.observaciones || '',
+      estado_general: operacion.estado_general || 'Activo',
+      pagos_programados: initialPagos,
+    });
+    setPlanPagos('1');
+    setShowForm(true);
+    setMessage('');
+
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  function startActivate(operacion: Operacion) {
+    setFormMode('activate');
+    setEditingOperacion(operacion);
+
+    const monto = Number(operacion.monto_total_comprometido || 0);
+
+    setForm({
+      cliente_id: operacion.cliente_id || '',
+      fecha_registro: operacion.fecha_registro || new Date().toISOString().slice(0, 10),
+      descripcion_operacion: operacion.descripcion_operacion || '',
+      cantidad: Number(operacion.cantidad || 0),
+      tipo_operacion: normalizeTipoOperacion(operacion.tipo_operacion),
+      tipo_empresa: operacion.tipo_empresa || 'Institucional',
+      responsable: operacion.responsable || 'Ejecutivo comercial',
+      estado_operacion: 'Vigente',
+      modalidad_pago: '',
+      monto_total_comprometido: monto,
+      vigencia_desde: operacion.vigencia_desde || '',
+      vigencia_hasta: operacion.vigencia_hasta || '',
+      observaciones: operacion.observaciones || '',
+      estado_general: operacion.estado_general || 'Activo',
+      pagos_programados: buildPagosByPlan('1', monto),
+    });
+    setPlanPagos('1');
+    setShowForm(true);
+    setMessage('');
+
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  function toggleForm() {
+    if (showForm) {
+      setShowForm(false);
+      resetForm();
+    } else {
+      resetForm();
+      setShowForm(true);
+    }
+  }
+
+  function upsertOperacion(operacion: Operacion) {
+    setOperaciones((current) => {
+      const exists = current.some((item) => item.operacion_id === operacion.operacion_id);
+
+      return exists
+        ? current.map((item) =>
+            item.operacion_id === operacion.operacion_id ? { ...item, ...operacion } : item
+          )
+        : [operacion, ...current];
+    });
+  }
+
+  async function handleActivate() {
+    if (!editingId) return;
+
+    const validationError = validateVigente();
+
+    if (validationError) {
+      setMessage(validationError);
+      return;
+    }
+
+    setSaving(true);
+    setMessage('');
+
+    const body: OperacionActivarPayload = {
+      operacion_id: editingId,
+      monto_total_comprometido: Number(form.monto_total_comprometido || 0),
+      vigencia_desde: form.vigencia_desde || '',
+      vigencia_hasta: form.vigencia_hasta || '',
+      pagos_programados: form.pagos_programados,
+    };
+
+    try {
+      const response = await fetch('/api/operaciones', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.message || 'No se pudo activar la operación.');
+      }
+
+      if (data.operacion) {
+        upsertOperacion(data.operacion);
+      } else {
+        loadData();
+      }
+
+      resetForm();
+      setShowForm(false);
+      setMessage(data.message || 'Operación activada correctamente.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Error al activar la operación.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (isActivate) {
+      handleActivate();
+      return;
+    }
 
     if (!form.cliente_id) {
       setMessage('Debe seleccionar un cliente.');
@@ -314,44 +552,87 @@ export default function OperacionesPage() {
       return;
     }
 
-    if (Math.abs(totalPorcentaje - 100) > 0.01) {
-      setMessage('La suma de porcentajes del plan de pagos debe ser 100%.');
+    if (!normalizeTipoOperacion(form.tipo_operacion)) {
+      setMessage('Debe seleccionar un tipo de operación válido.');
       return;
     }
 
-    if (Math.abs(totalPagos - Number(form.monto_total_comprometido || 0)) > 0.05) {
-      setMessage('La suma de montos programados debe igualar el monto total comprometido.');
-      return;
+    let estadoFinal = form.estado_operacion;
+    let pagosProgramados: PagoProgramadoForm[] = [];
+    let vigenciaDesde = form.vigencia_desde || '';
+    let vigenciaHasta = form.vigencia_hasta || '';
+
+    if (isCreate) {
+      if (situacionInicial === 'cotizacion') {
+        estadoFinal = 'Cotización enviada';
+        pagosProgramados = [];
+        vigenciaDesde = '';
+        vigenciaHasta = '';
+      } else {
+        estadoFinal = 'Vigente';
+
+        const validationError = validateVigente();
+
+        if (validationError) {
+          setMessage(validationError);
+          return;
+        }
+
+        pagosProgramados = form.pagos_programados;
+      }
+    } else {
+      // Edición: nunca crea pagos; el estado comercial lo preserva el backend.
+      pagosProgramados = [];
     }
 
     setSaving(true);
     setMessage('');
 
+    const payloadBase: OperacionCreatePayload = {
+      ...form,
+      estado_operacion: estadoFinal,
+      vigencia_desde: vigenciaDesde,
+      vigencia_hasta: vigenciaHasta,
+      modalidad_pago: '',
+      pagos_programados: pagosProgramados,
+      probabilidad: 0,
+      monto_total_ponderado: 0,
+    };
+
+    const body: OperacionCreatePayload | OperacionUpdatePayload = editingId
+      ? { ...payloadBase, operacion_id: editingId }
+      : payloadBase;
+    const isEditRequest = Boolean(editingId);
+
     try {
       const response = await fetch('/api/operaciones', {
-        method: 'POST',
+        method: isEditRequest ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify(body),
       });
 
       const data = await response.json();
 
       if (!response.ok || !data.ok) {
-        throw new Error(data.message || 'No se pudo registrar la operación.');
+        throw new Error(data.message || 'No se pudo guardar la operación.');
       }
 
       if (data.operacion) {
-        setOperaciones((current) => [data.operacion, ...current]);
+        upsertOperacion(data.operacion);
+      } else if (isEditRequest) {
+        loadData();
       }
 
-      setForm(initialForm);
-      setPlanPagos('1');
+      resetForm();
       setShowForm(false);
-      setMessage(data.message || 'Operación registrada correctamente.');
+      setMessage(
+        data.message ||
+          (isEditRequest ? 'Operación actualizada correctamente.' : 'Operación registrada correctamente.')
+      );
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Error al registrar operación.');
+      setMessage(error instanceof Error ? error.message : 'Error al guardar operación.');
     } finally {
       setSaving(false);
     }
@@ -364,14 +645,10 @@ export default function OperacionesPage() {
           <div>
             <span className="module-page__kicker">Módulo comercial</span>
             <h1>Operaciones</h1>
-            <p>Contrataciones, adjudicaciones, propuestas y ventas futuras.</p>
+            <p>Cotizaciones, contratos, adjudicaciones y ventas institucionales.</p>
           </div>
 
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => setShowForm((value) => !value)}
-          >
+          <button type="button" className="btn-primary" onClick={toggleForm}>
             {showForm ? 'Cerrar formulario' : '+ Nueva operación'}
           </button>
         </div>
@@ -385,19 +662,73 @@ export default function OperacionesPage() {
           </div>
 
           <div className="client-summary-card">
-            <span>Operaciones activas</span>
-            <strong>{operacionesActivas}</strong>
+            <span>Operaciones vigentes</span>
+            <strong>{operacionesVigentes}</strong>
           </div>
 
           <div className="client-summary-card">
-            <span>Monto comprometido</span>
-            <strong>{formatCurrency(totalComprometido)}</strong>
+            <span>Monto vigente</span>
+            <strong>{formatCurrency(montoVigente)}</strong>
           </div>
         </div>
 
         {showForm && (
           <form className="client-form" onSubmit={handleSubmit}>
-            <h2>Nueva operación</h2>
+            <h2>{formTitle}</h2>
+
+            {isActivate && (
+              <div className="notice">
+                Revisa los datos de la cotización y define el monto aprobado, la vigencia y el plan de
+                pagos. Al confirmar, la operación pasará a <strong>Vigente</strong>.
+              </div>
+            )}
+
+            {isCreate && (
+              <div className="payment-plan-box" style={{ marginTop: 0, marginBottom: 18 }}>
+                <h3 style={{ fontSize: '1rem', marginBottom: 4 }}>Situación inicial</h3>
+                <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.85rem', marginBottom: 12 }}>
+                  Define cómo nace la operación. Puedes aprobar la cotización más adelante.
+                </p>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+                  <label
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 8,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="situacion_inicial"
+                      style={{ width: 'auto' }}
+                      checked={situacionInicial === 'cotizacion'}
+                      onChange={() => updateSituacionInicial('cotizacion')}
+                    />
+                    Cotización enviada
+                  </label>
+
+                  <label
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 8,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="situacion_inicial"
+                      style={{ width: 'auto' }}
+                      checked={situacionInicial === 'vigente'}
+                      onChange={() => updateSituacionInicial('vigente')}
+                    />
+                    Operación confirmada / venta directa
+                  </label>
+                </div>
+              </div>
+            )}
 
             <div className="client-form-grid">
               <label>
@@ -405,6 +736,7 @@ export default function OperacionesPage() {
                 <select
                   value={form.cliente_id}
                   onChange={(event) => updateFormField('cliente_id', event.target.value)}
+                  disabled={isActivate}
                 >
                   <option value="">Seleccionar cliente</option>
                   {clientes.map((cliente) => (
@@ -415,14 +747,16 @@ export default function OperacionesPage() {
                 </select>
               </label>
 
-              <label>
-                Fecha registro
-                <input
-                  type="date"
-                  value={form.fecha_registro}
-                  onChange={(event) => updateFormField('fecha_registro', event.target.value)}
-                />
-              </label>
+              {!isActivate && (
+                <label>
+                  Fecha registro
+                  <input
+                    type="date"
+                    value={form.fecha_registro}
+                    onChange={(event) => updateFormField('fecha_registro', event.target.value)}
+                  />
+                </label>
+              )}
 
               <label className="client-form-full">
                 Descripción de la operación *
@@ -430,24 +764,28 @@ export default function OperacionesPage() {
                   value={form.descripcion_operacion}
                   onChange={(event) => updateFormField('descripcion_operacion', event.target.value)}
                   placeholder="Ej. Contratación de prendas institucionales"
+                  disabled={isActivate}
                 />
               </label>
 
-              <label>
-                Cantidad (Unidades)
-                <input
-                  type="number"
-                  value={form.cantidad || ''}
-                  onChange={(event) => updateFormField('cantidad', Number(event.target.value || 0))}
-                  placeholder="Ej. 1200"
-                />
-              </label>
+              {!isActivate && (
+                <label>
+                  Cantidad (Unidades)
+                  <input
+                    type="number"
+                    value={form.cantidad || ''}
+                    onChange={(event) => updateFormField('cantidad', Number(event.target.value || 0))}
+                    placeholder="Ej. 1200"
+                  />
+                </label>
+              )}
 
               <label>
                 Responsable
                 <select
                   value={form.responsable}
                   onChange={(event) => updateFormField('responsable', event.target.value)}
+                  disabled={isActivate}
                 >
                   <option value="Adriana Fuentes">Adriana Fuentes</option>
                   <option value="Gloria Mamani">Gloria Mamani</option>
@@ -457,79 +795,49 @@ export default function OperacionesPage() {
               </label>
 
               <label>
-                Tipo operación
+                Tipo operación *
                 <select
                   value={form.tipo_operacion}
                   onChange={(event) => updateFormField('tipo_operacion', event.target.value)}
+                  disabled={isActivate}
                 >
-                  <option value="Contrato">Contrato</option>
-                  <option value="Adjudicación">Adjudicación</option>
-                  <option value="Venta institucional">Venta institucional</option>
-                  <option value="Propuesta enviada">Propuesta enviada</option>
-                  <option value="Otro">Otro</option>
+                  <option value="">Seleccionar tipo</option>
+                  {TIPO_OPERACION_OPTIONS.map((tipo) => (
+                    <option key={tipo} value={tipo}>
+                      {tipo}
+                    </option>
+                  ))}
                 </select>
               </label>
 
-              <label>
-                Tipo empresa
-                <select
-                  value={form.tipo_empresa}
-                  onChange={(event) => updateFormField('tipo_empresa', event.target.value)}
-                >
-                  <option value="Público">Público</option>
-                  <option value="Privado">Privado</option>
-                  <option value="Institucional">Institucional</option>
-                  <option value="Otro">Otro</option>
-                </select>
-              </label>
+              {!isActivate && (
+                <label>
+                  Tipo empresa
+                  <select
+                    value={form.tipo_empresa}
+                    onChange={(event) => updateFormField('tipo_empresa', event.target.value)}
+                  >
+                    <option value="Público">Público</option>
+                    <option value="Privado">Privado</option>
+                    <option value="Institucional">Institucional</option>
+                    <option value="Otro">Otro</option>
+                  </select>
+                </label>
+              )}
+
+              {isEdit && (
+                <label>
+                  Estado comercial
+                  <input value={estadoComercial} disabled readOnly />
+                  <span style={{ fontSize: '0.78rem', opacity: 0.75 }}>
+                    El estado comercial no se edita aquí; se gestiona al aprobar la cotización o
+                    registrar pagos.
+                  </span>
+                </label>
+              )}
 
               <label>
-                Estado operación
-                <select
-                  value={form.estado_operacion}
-                  onChange={(event) => updateFormField('estado_operacion', event.target.value)}
-                >
-                  <option value="Propuesta enviada">Propuesta enviada</option>
-                  <option value="Vigente">Vigente</option>
-                  <option value="Cobro parcial">Cobro parcial</option>
-                  <option value="Cerrada">Cerrada</option>
-                  <option value="Perdida">Perdida</option>
-                  <option value="En espera">En espera</option>
-                </select>
-              </label>
-
-              <label>
-                Nivel certeza
-                <select
-                  value={form.nivel_certeza}
-                  onChange={(event) =>
-                    updateFormField('nivel_certeza', event.target.value as NivelCerteza)
-                  }
-                >
-                  <option value="Alta">Alta - 90%</option>
-                  <option value="Media">Media - 60%</option>
-                  <option value="Baja">Baja - 30%</option>
-                </select>
-              </label>
-
-              <label>
-                Modalidad pago
-                <select
-                  value={form.modalidad_pago}
-                  onChange={(event) => updateFormField('modalidad_pago', event.target.value)}
-                >
-                  <option value="SIGEP">SIGEP</option>
-                  <option value="Transferencia bancaria">Transferencia bancaria</option>
-                  <option value="Efectivo">Efectivo</option>
-                  <option value="QR">QR</option>
-                  <option value="Billetera móvil">Billetera móvil</option>
-                  <option value="Cheque">Cheque</option>
-                  <option value="Otro">Otro</option>
-                </select>
-              </label>
-
-              <label>
-                Monto total comprometido * (Bs.)
+                {montoLabel}
                 <input
                   type="number"
                   value={form.monto_total_comprometido || ''}
@@ -537,140 +845,177 @@ export default function OperacionesPage() {
                     updateFormField('monto_total_comprometido', Number(event.target.value || 0))
                   }
                   placeholder="Ej. 205700"
+                  disabled={bloquearMonto}
+                  required={montoRequerido}
                 />
+                {bloquearMonto && (
+                  <span style={{ fontSize: '0.78rem', opacity: 0.75 }}>
+                    La operación tiene depósitos registrados; el monto no se puede modificar.
+                  </span>
+                )}
               </label>
 
-              <label>
-                Vigencia desde
-                <input
-                  type="date"
-                  value={form.vigencia_desde}
-                  onChange={(event) => updateFormField('vigencia_desde', event.target.value)}
-                />
-              </label>
+              {mostrarVigencias && (
+                <label>
+                  Vigencia desde{exigeContrato ? ' *' : ''}
+                  <input
+                    type="date"
+                    value={form.vigencia_desde}
+                    onChange={(event) => updateFormField('vigencia_desde', event.target.value)}
+                  />
+                </label>
+              )}
 
-              <label>
-                Vigencia hasta
-                <input
-                  type="date"
-                  value={form.vigencia_hasta}
-                  onChange={(event) => updateFormField('vigencia_hasta', event.target.value)}
-                />
-              </label>
+              {mostrarVigencias && (
+                <label>
+                  Vigencia hasta{exigeContrato ? ' *' : ''}
+                  <input
+                    type="date"
+                    value={form.vigencia_hasta}
+                    onChange={(event) => updateFormField('vigencia_hasta', event.target.value)}
+                  />
+                </label>
+              )}
 
-              <label className="client-form-full">
-                Observaciones
-                <textarea
-                  value={form.observaciones}
-                  onChange={(event) => updateFormField('observaciones', event.target.value)}
-                  placeholder="Notas comerciales, condiciones o datos pendientes."
-                />
-              </label>
+              {!isActivate && (
+                <label className="client-form-full">
+                  Observaciones
+                  <textarea
+                    value={form.observaciones}
+                    onChange={(event) => updateFormField('observaciones', event.target.value)}
+                    placeholder="Notas comerciales, condiciones o datos pendientes."
+                  />
+                </label>
+              )}
             </div>
 
-            <div className="payment-plan-box">
-              <div className="payment-plan-header">
-                <div>
-                  <h3>Plan de pagos</h3>
-                  <p>Define los pagos esperados para esta operación.</p>
+            {mostrarPlanEditable && (
+              <div className="payment-plan-box">
+                <div className="payment-plan-header">
+                  <div>
+                    <h3>Plan de pagos</h3>
+                    <p>Define los pagos esperados para esta operación vigente.</p>
+                  </div>
+
+                  <select
+                    value={planPagos}
+                    onChange={(event) => updatePlanPagos(event.target.value as PlanPagos)}
+                  >
+                    <option value="1">1 pago</option>
+                    <option value="2">2 pagos</option>
+                    <option value="3">3 pagos</option>
+                    <option value="4">4 pagos</option>
+                    <option value="personalizado">Personalizado</option>
+                  </select>
                 </div>
 
-                <select value={planPagos} onChange={(event) => updatePlanPagos(event.target.value as PlanPagos)}>
-                  <option value="1">1 pago</option>
-                  <option value="2">2 pagos</option>
-                  <option value="3">3 pagos</option>
-                  <option value="4">4 pagos</option>
-                  <option value="personalizado">Personalizado</option>
-                </select>
-              </div>
-
-              <div className="payment-table-wrap">
-                <table className="client-table payment-table">
-                  <thead>
-                    <tr>
-                      <th>N°</th>
-                      <th>Concepto</th>
-                      <th>%</th>
-                      <th>Monto</th>
-                      <th>Fecha</th>
-                      <th>Estado</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {form.pagos_programados.map((pago, index) => (
-                      <tr key={`${pago.numero_pago}-${index}`}>
-                        <td>{pago.numero_pago}</td>
-                        <td>
-                          <input
-                            value={pago.concepto_pago}
-                            onChange={(event) => updatePago(index, 'concepto_pago', event.target.value)}
-                          />
-                        </td>
-                        <td>
-                          <input
-                            type="number"
-                            value={pago.porcentaje_programado}
-                            onChange={(event) => updatePago(index, 'porcentaje_programado', event.target.value)}
-                          />
-                        </td>
-                        <td>
-                          <input
-                            type="number"
-                            value={pago.monto_programado}
-                            onChange={(event) => updatePago(index, 'monto_programado', event.target.value)}
-                          />
-                        </td>
-                        <td>
-                          <input
-                            type="date"
-                            value={pago.fecha_programada}
-                            onChange={(event) => updatePago(index, 'fecha_programada', event.target.value)}
-                          />
-                        </td>
-                        <td>{pago.estado_pago}</td>
-                        <td>
-                          {form.pagos_programados.length > 1 && (
-                            <button
-                              type="button"
-                              className="btn-secondary btn-small"
-                              onClick={() => removePago(index)}
-                            >
-                              Quitar
-                            </button>
-                          )}
-                        </td>
+                <div className="payment-table-wrap">
+                  <table className="client-table payment-table">
+                    <thead>
+                      <tr>
+                        <th>N°</th>
+                        <th>Concepto</th>
+                        <th>%</th>
+                        <th>Monto</th>
+                        <th>Fecha</th>
+                        <th>Estado</th>
+                        <th></th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
 
-              <div className="payment-plan-footer">
-                <span>Total %: {totalPorcentaje.toFixed(2)}%</span>
-                <span>Total pagos: {formatCurrency(totalPagos)}</span>
-                <button type="button" className="btn-secondary btn-small" onClick={addPagoPersonalizado}>
-                  + Agregar pago
-                </button>
+                    <tbody>
+                      {form.pagos_programados.map((pago, index) => (
+                        <tr key={`${pago.numero_pago}-${index}`}>
+                          <td>{pago.numero_pago}</td>
+                          <td>
+                            <input
+                              value={pago.concepto_pago}
+                              onChange={(event) => updatePago(index, 'concepto_pago', event.target.value)}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              value={pago.porcentaje_programado}
+                              onChange={(event) => updatePago(index, 'porcentaje_programado', event.target.value)}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              value={pago.monto_programado}
+                              onChange={(event) => updatePago(index, 'monto_programado', event.target.value)}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="date"
+                              value={pago.fecha_programada}
+                              onChange={(event) => updatePago(index, 'fecha_programada', event.target.value)}
+                            />
+                          </td>
+                          <td>{pago.estado_pago}</td>
+                          <td>
+                            {form.pagos_programados.length > 1 && (
+                              <button
+                                type="button"
+                                className="btn-secondary btn-small"
+                                onClick={() => removePago(index)}
+                              >
+                                Quitar
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="payment-plan-footer">
+                  <span>Total %: {totalPorcentaje.toFixed(2)}%</span>
+                  <span>Total pagos: {formatCurrency(totalPagos)}</span>
+                  <button type="button" className="btn-secondary btn-small" onClick={addPagoPersonalizado}>
+                    + Agregar pago
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
+
+            {isEdit && editingOperacion?.tiene_pagos && (
+              <div className="notice">
+                Esta operación ya tiene un plan de pagos. Gestiónalo desde el módulo Pagos; aquí no se
+                crean pagos nuevos.{' '}
+                <Link href={`/pagos?operacion_id=${encodeURIComponent(editingId ?? '')}`}>
+                  Ver pagos
+                </Link>
+              </div>
+            )}
 
             <div className="client-form-actions">
               <button
                 type="button"
                 className="btn-secondary"
                 onClick={() => {
-                  setForm(initialForm);
-                  setPlanPagos('1');
+                  resetForm();
                   setShowForm(false);
                 }}
               >
-                Cancelar
+                {isActivate ? 'Cancelar' : isEdit ? 'Cancelar edición' : 'Cancelar'}
               </button>
 
               <button type="submit" className="btn-primary" disabled={saving}>
-                {saving ? 'Guardando...' : 'Guardar operación'}
+                {isActivate
+                  ? saving
+                    ? 'Activando...'
+                    : 'Aprobar y activar operación'
+                  : isEdit
+                  ? saving
+                    ? 'Actualizando...'
+                    : 'Actualizar operación'
+                  : saving
+                  ? 'Guardando...'
+                  : 'Guardar operación'}
               </button>
             </div>
           </form>
@@ -680,7 +1025,7 @@ export default function OperacionesPage() {
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar por cliente, descripción, responsable, estado o certeza..."
+            placeholder="Buscar por cliente, descripción, responsable, estado o cobro..."
           />
         </div>
 
@@ -697,38 +1042,78 @@ export default function OperacionesPage() {
                   <th>Cliente</th>
                   <th>Descripción</th>
                   <th>Responsable</th>
-                  <th>Estado</th>
-                  <th>Certeza</th>
+                  <th>Estado comercial</th>
                   <th>Monto</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
 
               <tbody>
-                {filteredOperaciones.map((operacion) => (
-                  <tr key={operacion.operacion_id}>
-                    <td>{operacion.operacion_id}</td>
-                    <td>{operacion.cliente_nombre || operacion.cliente_id}</td>
-                    <td>
-                      <strong>{operacion.descripcion_operacion}</strong>
-                      <span>{operacion.tipo_operacion}</span>
-                    </td>
-                    <td>{operacion.responsable || '-'}</td>
-                    <td>
-                      <span className="status-pill">{operacion.estado_operacion}</span>
-                    </td>
-                    <td>{operacion.nivel_certeza}</td>
-                    <td>{formatCurrency(operacion.monto_total_comprometido)}</td>
-                    <td>
-                      <Link
-                        href={`/pagos?operacion_id=${encodeURIComponent(operacion.operacion_id)}`}
-                        className="btn-secondary btn-small"
-                      >
-                        Ver pagos
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
+                {filteredOperaciones.map((operacion) => {
+                  const estado = normalizeEstadoComercial(operacion.estado_operacion);
+                  const tienePagos = Boolean(operacion.tiene_pagos);
+                  const estadoCobro = operacion.estado_cobro || 'Sin plan';
+                  const esCotizacion = estado === 'Cotización enviada';
+
+                  return (
+                    <tr key={operacion.operacion_id}>
+                      <td>{operacion.operacion_id}</td>
+                      <td>{operacion.cliente_nombre || operacion.cliente_id}</td>
+                      <td>
+                        <strong>{operacion.descripcion_operacion}</strong>
+                        <span>{operacion.tipo_operacion}</span>
+                      </td>
+                      <td>{operacion.responsable || '-'}</td>
+                      <td>
+                        <span className="status-pill">{estado}</span>
+                        <span>{estadoCobro}</span>
+                        {operacion.requiere_regularizacion && (
+                          <span>Requiere regularización</span>
+                        )}
+                      </td>
+                      <td>{formatCurrency(operacion.monto_total_comprometido)}</td>
+                      <td>
+                        <div
+                          style={{
+                            display: 'flex',
+                            gap: '8px',
+                            flexWrap: 'wrap',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <button
+                            type="button"
+                            className="btn-secondary btn-small"
+                            onClick={() => startEdit(operacion)}
+                          >
+                            Editar
+                          </button>
+
+                          {esCotizacion && !tienePagos && (
+                            <button
+                              type="button"
+                              className="btn-primary btn-small"
+                              onClick={() => startActivate(operacion)}
+                            >
+                              Aprobar cotización
+                            </button>
+                          )}
+
+                          {tienePagos && (
+                            <Link
+                              href={`/pagos?operacion_id=${encodeURIComponent(operacion.operacion_id)}`}
+                              className="btn-secondary btn-small"
+                            >
+                              Ver pagos
+                            </Link>
+                          )}
+
+                          {!tienePagos && !esCotizacion && <span>Sin plan de pagos</span>}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
