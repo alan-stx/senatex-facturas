@@ -1306,6 +1306,53 @@ body::before {
   color: var(--color-text-muted);
 }
 
+/* Badge del rol del usuario (barra expandida). */
+.sidebar-role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 3px 10px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 999px;
+  background: var(--color-primary-soft);
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.sidebar-role-badge__dot {
+  color: var(--color-primary);
+  font-size: 0.55rem;
+  line-height: 1;
+}
+
+/* Indicador compacto del rol (barra contraída). Oculto por defecto. */
+.sidebar-role-badge-collapsed {
+  display: none;
+}
+
+.shell--collapsed .sidebar-role-badge {
+  display: none;
+}
+
+.shell--collapsed .sidebar-role-badge-collapsed {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin: 8px auto 0;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  background: var(--color-primary-soft);
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
 .shell-nav {
   display: flex;
   flex-direction: column;

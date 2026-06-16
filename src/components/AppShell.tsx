@@ -20,6 +20,22 @@ type AccessInfo = {
   modules: Record<ModuleKey, boolean>;
 };
 
+function createNoAccess(email: string): AccessInfo {
+  return {
+    ok: false,
+    email,
+    role: 'sin_acceso',
+    modules: {
+      facturas: false,
+      clientes: false,
+      operaciones: false,
+      pagos: false,
+      dashboard: false,
+      configuracion: false,
+    },
+  };
+}
+
 const navItems: Array<{
   key: 'inicio' | ModuleKey;
   label: string;
@@ -47,39 +63,71 @@ function getCurrentModule(pathname: string) {
   );
 }
 
-function getRoleLabel(role?: AccessInfo['role']) {
-  if (role === 'admin') return 'Administrador';
-  if (role === 'comercial') return 'Comercial';
-  if (role === 'tienda') return 'Tienda';
-  return 'Usuario';
+type Role = AccessInfo['role'];
+
+/** Nombre visible del rol (barra expandida y topbar). */
+const ROLE_LABELS: Record<Role, string> = {
+  admin: 'Administrador',
+  comercial: 'Oficial de venta',
+  tienda: 'Vendedor',
+  sin_acceso: 'Sin acceso',
+};
+
+/** Indicador compacto del rol cuando el sidebar está contraído. */
+const ROLE_SHORT_LABELS: Record<Role, string> = {
+  admin: 'A',
+  comercial: 'O',
+  tienda: 'V',
+  sin_acceso: '–',
+};
+
+function getRoleLabel(role?: Role) {
+  return role ? ROLE_LABELS[role] : ROLE_LABELS.sin_acceso;
 }
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { data: session, status } = useSession();
   const [access, setAccess] = useState<AccessInfo | null>(null);
-  const [accessLoading, setAccessLoading] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem('senatex-sidebar-collapsed');
-    setSidebarCollapsed(stored === 'true');
-  }, []);
+    const email = session?.user?.email;
 
-  useEffect(() => {
-    if (!session?.user?.email) {
-      setAccess(null);
+    if (!email) {
       return;
     }
 
-    setAccessLoading(true);
+    let active = true;
 
     fetch('/api/access')
-      .then((response) => response.json())
-      .then((data) => setAccess(data))
-      .catch(() => setAccess(null))
-      .finally(() => setAccessLoading(false));
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error('No se pudieron consultar los permisos.');
+        }
+
+        return (await response.json()) as AccessInfo;
+      })
+      .then((data) => {
+        if (active) {
+          setAccess(data);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setAccess(createNoAccess(email));
+        }
+      });
+
+    return () => {
+      active = false;
+    };
   }, [session?.user?.email]);
+
+    const accessReady =
+    Boolean(session?.user?.email) &&
+    Boolean(access) &&
+    access?.email.toLowerCase() === session?.user?.email?.toLowerCase();
 
   const visibleNavItems = useMemo(() => {
     return navItems.filter((item) => {
@@ -102,11 +150,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, [currentModule, access]);
 
   function toggleSidebar() {
-    setSidebarCollapsed((current) => {
-      const next = !current;
-      window.localStorage.setItem('senatex-sidebar-collapsed', String(next));
-      return next;
-    });
+    setSidebarCollapsed((current) => !current);
   }
 
   if (status === 'loading') {
@@ -139,7 +183,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (accessLoading || !access) {
+  if (!accessReady) {
     return (
       <main className="landing-page">
         <section className="landing-card">
@@ -155,6 +199,27 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <div className="shell-sidebar__brand">
           <span className="shell-sidebar__brand-title">SENATEX</span>
           <small>Gestión interna</small>
+
+          {access?.role && (
+            <>
+              {/* Barra expandida: nombre completo del rol. */}
+              <span className="sidebar-role-badge" title={ROLE_LABELS[access.role]}>
+                <span className="sidebar-role-badge__dot" aria-hidden="true">
+                  ●
+                </span>
+                {ROLE_LABELS[access.role]}
+              </span>
+
+              {/* Barra contraída: indicador compacto con el nombre accesible. */}
+              <span
+                className="sidebar-role-badge-collapsed"
+                title={ROLE_LABELS[access.role]}
+                aria-label={`Rol: ${ROLE_LABELS[access.role]}`}
+              >
+                {ROLE_SHORT_LABELS[access.role]}
+              </span>
+            </>
+          )}
         </div>
 
         <nav className="shell-nav">
