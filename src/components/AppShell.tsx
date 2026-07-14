@@ -73,14 +73,6 @@ const ROLE_LABELS: Record<Role, string> = {
   sin_acceso: 'Sin acceso',
 };
 
-/** Indicador compacto del rol cuando el sidebar está contraído. */
-const ROLE_SHORT_LABELS: Record<Role, string> = {
-  admin: 'A',
-  comercial: 'O',
-  tienda: 'V',
-  sin_acceso: '–',
-};
-
 function getRoleLabel(role?: Role) {
   return role ? ROLE_LABELS[role] : ROLE_LABELS.sin_acceso;
 }
@@ -198,27 +190,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <aside className="shell-sidebar">
         <div className="shell-sidebar__brand">
           <span className="shell-sidebar__brand-title">SENATEX</span>
-          <small>Gestión interna</small>
 
+          {/* Badge del rol: solo en barra expandida (se oculta al contraer). */}
           {access?.role && (
-            <>
-              {/* Barra expandida: nombre completo del rol. */}
-              <span className="sidebar-role-badge" title={ROLE_LABELS[access.role]}>
-                <span className="sidebar-role-badge__dot" aria-hidden="true">
-                  ●
-                </span>
-                {ROLE_LABELS[access.role]}
+            <span className="sidebar-role-badge" title={ROLE_LABELS[access.role]}>
+              <span className="sidebar-role-badge__dot" aria-hidden="true">
+                ●
               </span>
-
-              {/* Barra contraída: indicador compacto con el nombre accesible. */}
-              <span
-                className="sidebar-role-badge-collapsed"
-                title={ROLE_LABELS[access.role]}
-                aria-label={`Rol: ${ROLE_LABELS[access.role]}`}
-              >
-                {ROLE_SHORT_LABELS[access.role]}
-              </span>
-            </>
+              {ROLE_LABELS[access.role]}
+            </span>
           )}
         </div>
 

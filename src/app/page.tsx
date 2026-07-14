@@ -20,6 +20,22 @@ type AccessInfo = {
   modules: Record<ModuleKey | 'configuracion', boolean>;
 };
 
+function createNoAccess(email: string): AccessInfo {
+  return {
+    ok: false,
+    email,
+    role: 'sin_acceso',
+    modules: {
+      facturas: false,
+      clientes: false,
+      operaciones: false,
+      pagos: false,
+      dashboard: false,
+      configuracion: false,
+    },
+  };
+}
+
 const modules: Array<{
   key: ModuleKey;
   title: string;
@@ -74,22 +90,44 @@ const modules: Array<{
 export default function HomePage() {
   const { data: session, status } = useSession();
   const [access, setAccess] = useState<AccessInfo | null>(null);
-  const [accessLoading, setAccessLoading] = useState(false);
 
   useEffect(() => {
-    if (!session?.user?.email) {
-      setAccess(null);
+    const email = session?.user?.email;
+
+    if (!email) {
       return;
     }
 
-    setAccessLoading(true);
+    let active = true;
 
     fetch('/api/access')
-      .then((response) => response.json())
-      .then((data) => setAccess(data))
-      .catch(() => setAccess(null))
-      .finally(() => setAccessLoading(false));
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error('No se pudieron consultar los permisos.');
+        }
+
+        return (await response.json()) as AccessInfo;
+      })
+      .then((data) => {
+        if (active) {
+          setAccess(data);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setAccess(createNoAccess(email));
+        }
+      });
+
+    return () => {
+      active = false;
+    };
   }, [session?.user?.email]);
+
+  const accessReady =
+    Boolean(session?.user?.email) &&
+    Boolean(access) &&
+    access?.email.toLowerCase() === session?.user?.email?.toLowerCase();
 
   const visibleModules = useMemo(() => {
     return modules.filter((module) => {
@@ -142,7 +180,7 @@ export default function HomePage() {
     );
   }
 
-  if (accessLoading) {
+  if (!accessReady) {
     return (
       <main className="landing-page">
         <section className="landing-card">

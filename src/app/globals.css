@@ -721,6 +721,29 @@ body::before {
   color: var(--color-text);
 }
 
+/* Botón rojo para acciones destructivas (cerrar/cancelar cotización). */
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  background: var(--color-error-bg);
+  color: var(--color-error);
+  border: 1px solid var(--color-error-border);
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-danger:hover {
+  background: var(--color-error);
+  color: #fff;
+  border-color: var(--color-error);
+}
+
 /* ── Historial ────────────────────────────── */
 .history-section {
   margin-top: 32px;
@@ -1298,14 +1321,6 @@ body::before {
   font-weight: 900;
 }
 
-.shell--collapsed .shell-sidebar__brand small {
-  display: none;
-}
-
-.shell-sidebar__brand small {
-  color: var(--color-text-muted);
-}
-
 /* Badge del rol del usuario (barra expandida). */
 .sidebar-role-badge {
   display: inline-flex;
@@ -1330,27 +1345,120 @@ body::before {
   line-height: 1;
 }
 
-/* Indicador compacto del rol (barra contraída). Oculto por defecto. */
-.sidebar-role-badge-collapsed {
-  display: none;
-}
-
+/* En barra contraída no se muestra ningún badge de rol. */
 .shell--collapsed .sidebar-role-badge {
   display: none;
 }
 
-.shell--collapsed .sidebar-role-badge-collapsed {
+/* Situación inicial: tarjetas seleccionables (reemplazan los radios simples). */
+.situacion-inicial {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin: 0 0 18px;
+}
+
+.situacion-inicial legend {
+  padding: 0 6px;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.situacion-inicial__hint {
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  margin: 4px 0 12px;
+}
+
+.situacion-inicial__options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.situacion-card {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.situacion-card:hover {
+  border-color: var(--color-primary);
+}
+
+.situacion-card:focus-within {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.situacion-card--active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.situacion-card__radio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.situacion-card__check {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  border: 2px solid var(--color-border);
+  border-radius: 50%;
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
-  margin: 8px auto 0;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: 8px;
-  background: var(--color-primary-soft);
-  color: var(--color-text-secondary);
-  font-size: 0.78rem;
+}
+
+.situacion-card--active .situacion-card__check {
+  border-color: var(--color-primary);
+}
+
+.situacion-card--active .situacion-card__check::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-primary);
+}
+
+.situacion-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.situacion-card__title {
   font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+.situacion-card--active .situacion-card__title {
+  color: var(--color-text);
+}
+
+.situacion-card__desc {
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 640px) {
+  .situacion-inicial__options {
+    grid-template-columns: 1fr;
+  }
 }
 
 .shell-nav {

@@ -34,9 +34,12 @@ const initialForm: OperacionCreatePayload = {
   descripcion_operacion: '',
   cantidad: 0,
   tipo_operacion: 'Contrato',
-  tipo_empresa: 'Institucional',
-  responsable: 'Ejecutivo comercial',
-  estado_operacion: 'Cotización enviada',
+  // Se completa automáticamente desde cliente.tipo_cliente al elegir cliente.
+  tipo_empresa: '',
+  // El responsable se fija con la sesión autenticada en el backend; el valor
+  // del navegador es ignorado por la API.
+  responsable: '',
+  estado_operacion: 'Cotización',
   modalidad_pago: '',
   monto_total_comprometido: 0,
   vigencia_desde: '',
@@ -121,6 +124,8 @@ export default function OperacionesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [closingOperacion, setClosingOperacion] = useState<Operacion | null>(null);
+  const [closing, setClosing] = useState(false);
 
   const editingId = editingOperacion?.operacion_id ?? null;
 
@@ -248,6 +253,13 @@ export default function OperacionesPage() {
         }
       }
 
+      // El tipo de empresa se obtiene del cliente seleccionado (tipo_cliente),
+      // no se elige manualmente.
+      if (field === 'cliente_id') {
+        const cliente = clientes.find((item) => item.cliente_id === String(value));
+        next.tipo_empresa = cliente?.tipo_cliente || '';
+      }
+
       return next;
     });
   }
@@ -269,7 +281,7 @@ export default function OperacionesPage() {
 
       return {
         ...current,
-        estado_operacion: 'Cotización enviada',
+        estado_operacion: 'Cotización',
       };
     });
   }
@@ -410,7 +422,7 @@ export default function OperacionesPage() {
       tipo_operacion: normalizeTipoOperacion(operacion.tipo_operacion),
       tipo_empresa: operacion.tipo_empresa || 'Institucional',
       responsable: operacion.responsable || 'Ejecutivo comercial',
-      estado_operacion: normalizeEstadoComercial(operacion.estado_operacion) || 'Cotización enviada',
+      estado_operacion: normalizeEstadoComercial(operacion.estado_operacion) || 'Cotización',
       modalidad_pago: '',
       monto_total_comprometido: Number(operacion.monto_total_comprometido || 0),
       vigencia_desde: operacion.vigencia_desde || '',
@@ -534,6 +546,48 @@ export default function OperacionesPage() {
     }
   }
 
+  async function handleCloseQuote() {
+    if (!closingOperacion) return;
+
+    const operacionId = closingOperacion.operacion_id;
+
+    setClosing(true);
+    setMessage('');
+
+    try {
+      const response = await fetch('/api/operaciones', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'close_quote',
+          operacion_id: operacionId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.message || 'No se pudo cerrar la cotización.');
+      }
+
+      // Solo cambia el estado comercial; el resto de la fila se conserva.
+      setOperaciones((current) =>
+        current.map((item) =>
+          item.operacion_id === operacionId ? { ...item, estado_operacion: 'Cerrada' } : item
+        )
+      );
+
+      setClosingOperacion(null);
+      setMessage(data.message || 'Cotización cerrada correctamente.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Error al cerrar la cotización.');
+    } finally {
+      setClosing(false);
+    }
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -564,7 +618,7 @@ export default function OperacionesPage() {
 
     if (isCreate) {
       if (situacionInicial === 'cotizacion') {
-        estadoFinal = 'Cotización enviada';
+        estadoFinal = 'Cotización';
         pagosProgramados = [];
         vigenciaDesde = '';
         vigenciaHasta = '';
@@ -588,8 +642,14 @@ export default function OperacionesPage() {
     setSaving(true);
     setMessage('');
 
+    // tipo_empresa siempre proviene del cliente seleccionado (tipo_cliente),
+    // no del navegador. n8n vuelve a verificarlo contra la hoja Clientes.
+    const clienteSeleccionado = clientes.find((item) => item.cliente_id === form.cliente_id);
+    const tipoEmpresa = clienteSeleccionado?.tipo_cliente || form.tipo_empresa || '';
+
     const payloadBase: OperacionCreatePayload = {
       ...form,
+      tipo_empresa: tipoEmpresa,
       estado_operacion: estadoFinal,
       vigencia_desde: vigenciaDesde,
       vigencia_hasta: vigenciaHasta,
@@ -684,50 +744,64 @@ export default function OperacionesPage() {
             )}
 
             {isCreate && (
-              <div className="payment-plan-box" style={{ marginTop: 0, marginBottom: 18 }}>
-                <h3 style={{ fontSize: '1rem', marginBottom: 4 }}>Situación inicial</h3>
-                <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.85rem', marginBottom: 12 }}>
+              <fieldset className="situacion-inicial">
+                <legend>Situación inicial</legend>
+                <p className="situacion-inicial__hint">
                   Define cómo nace la operación. Puedes aprobar la cotización más adelante.
                 </p>
 
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+                <div className="situacion-inicial__options">
                   <label
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 8,
-                      cursor: 'pointer',
-                    }}
+                    className={
+                      situacionInicial === 'cotizacion'
+                        ? 'situacion-card situacion-card--active'
+                        : 'situacion-card'
+                    }
                   >
                     <input
                       type="radio"
+                      className="situacion-card__radio"
                       name="situacion_inicial"
-                      style={{ width: 'auto' }}
                       checked={situacionInicial === 'cotizacion'}
                       onChange={() => updateSituacionInicial('cotizacion')}
                     />
-                    Cotización enviada
+                    <span className="situacion-card__check" aria-hidden="true" />
+                    <span className="situacion-card__body">
+                      <span className="situacion-card__title">Cotización</span>
+                      <span className="situacion-card__desc">
+                        La propuesta fue enviada y está pendiente de aprobación. El plan de pagos se
+                        definirá cuando la cotización sea aprobada.
+                      </span>
+                    </span>
                   </label>
 
                   <label
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 8,
-                      cursor: 'pointer',
-                    }}
+                    className={
+                      situacionInicial === 'vigente'
+                        ? 'situacion-card situacion-card--active'
+                        : 'situacion-card'
+                    }
                   >
                     <input
                       type="radio"
+                      className="situacion-card__radio"
                       name="situacion_inicial"
-                      style={{ width: 'auto' }}
                       checked={situacionInicial === 'vigente'}
                       onChange={() => updateSituacionInicial('vigente')}
                     />
-                    Operación confirmada / venta directa
+                    <span className="situacion-card__check" aria-hidden="true" />
+                    <span className="situacion-card__body">
+                      <span className="situacion-card__title">
+                        Operación confirmada / venta directa
+                      </span>
+                      <span className="situacion-card__desc">
+                        La venta ya fue confirmada. Debes registrar la vigencia y definir su plan de
+                        pagos.
+                      </span>
+                    </span>
                   </label>
                 </div>
-              </div>
+              </fieldset>
             )}
 
             <div className="client-form-grid">
@@ -781,20 +855,6 @@ export default function OperacionesPage() {
               )}
 
               <label>
-                Responsable
-                <select
-                  value={form.responsable}
-                  onChange={(event) => updateFormField('responsable', event.target.value)}
-                  disabled={isActivate}
-                >
-                  <option value="Adriana Fuentes">Adriana Fuentes</option>
-                  <option value="Gloria Mamani">Gloria Mamani</option>
-                  <option value="Omar Torrico">Omar Torrico</option>
-                  <option value="Ejecutivo comercial">Ejecutivo comercial</option>
-                </select>
-              </label>
-
-              <label>
                 Tipo operación *
                 <select
                   value={form.tipo_operacion}
@@ -809,21 +869,6 @@ export default function OperacionesPage() {
                   ))}
                 </select>
               </label>
-
-              {!isActivate && (
-                <label>
-                  Tipo empresa
-                  <select
-                    value={form.tipo_empresa}
-                    onChange={(event) => updateFormField('tipo_empresa', event.target.value)}
-                  >
-                    <option value="Público">Público</option>
-                    <option value="Privado">Privado</option>
-                    <option value="Institucional">Institucional</option>
-                    <option value="Otro">Otro</option>
-                  </select>
-                </label>
-              )}
 
               {isEdit && (
                 <label>
@@ -1041,7 +1086,6 @@ export default function OperacionesPage() {
                   <th>ID</th>
                   <th>Cliente</th>
                   <th>Descripción</th>
-                  <th>Responsable</th>
                   <th>Estado comercial</th>
                   <th>Monto</th>
                   <th>Acciones</th>
@@ -1053,17 +1097,33 @@ export default function OperacionesPage() {
                   const estado = normalizeEstadoComercial(operacion.estado_operacion);
                   const tienePagos = Boolean(operacion.tiene_pagos);
                   const estadoCobro = operacion.estado_cobro || 'Sin plan';
-                  const esCotizacion = estado === 'Cotización enviada';
+                  const esCotizacion = estado === 'Cotización';
 
                   return (
                     <tr key={operacion.operacion_id}>
-                      <td>{operacion.operacion_id}</td>
-                      <td>{operacion.cliente_nombre || operacion.cliente_id}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{operacion.operacion_id}</td>
                       <td>
-                        <strong>{operacion.descripcion_operacion}</strong>
-                        <span>{operacion.tipo_operacion}</span>
+                        <strong>{operacion.cliente_nombre || operacion.cliente_id}</strong>
                       </td>
-                      <td>{operacion.responsable || '-'}</td>
+                      <td>
+                        <span
+                          style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            maxWidth: 340,
+                            whiteSpace: 'normal',
+                            overflowWrap: 'anywhere',
+                          }}
+                          title={operacion.descripcion_operacion}
+                        >
+                          {operacion.descripcion_operacion}
+                        </span>
+                        <span style={{ display: 'block', fontSize: '0.8rem', opacity: 0.7 }}>
+                          {operacion.tipo_operacion}
+                        </span>
+                      </td>
                       <td>
                         <span className="status-pill">{estado}</span>
                         <span>{estadoCobro}</span>
@@ -1076,27 +1136,39 @@ export default function OperacionesPage() {
                         <div
                           style={{
                             display: 'flex',
-                            gap: '8px',
-                            flexWrap: 'wrap',
-                            alignItems: 'center',
+                            flexDirection: 'column',
+                            gap: '6px',
+                            alignItems: 'stretch',
                           }}
                         >
-                          <button
-                            type="button"
-                            className="btn-secondary btn-small"
-                            onClick={() => startEdit(operacion)}
-                          >
-                            Editar
-                          </button>
+                          {esCotizacion && (
+                            <>
+                              <button
+                                type="button"
+                                className="btn-secondary btn-small"
+                                onClick={() => startEdit(operacion)}
+                              >
+                                Editar
+                              </button>
 
-                          {esCotizacion && !tienePagos && (
-                            <button
-                              type="button"
-                              className="btn-primary btn-small"
-                              onClick={() => startActivate(operacion)}
-                            >
-                              Aprobar cotización
-                            </button>
+                              {!tienePagos && (
+                                <button
+                                  type="button"
+                                  className="btn-primary btn-small"
+                                  onClick={() => startActivate(operacion)}
+                                >
+                                  Aprobar cotización
+                                </button>
+                              )}
+
+                              <button
+                                type="button"
+                                className="btn-danger btn-small"
+                                onClick={() => setClosingOperacion(operacion)}
+                              >
+                                Cerrar cotización
+                              </button>
+                            </>
                           )}
 
                           {tienePagos && (
@@ -1108,7 +1180,9 @@ export default function OperacionesPage() {
                             </Link>
                           )}
 
-                          {!tienePagos && !esCotizacion && <span>Sin plan de pagos</span>}
+                          {!esCotizacion && !tienePagos && (
+                            <span>{estado === 'Cerrada' ? 'Cerrada' : 'Sin plan de pagos'}</span>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1118,6 +1192,38 @@ export default function OperacionesPage() {
             </table>
           )}
         </div>
+
+        {closingOperacion && (
+          <div className="modal-backdrop">
+            <div className="modal-card">
+              <h2>Cerrar cotización</h2>
+              <p>
+                ¿Confirmas que esta cotización no continuará? La operación quedará cerrada y no se
+                generará plan de pagos.
+              </p>
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setClosingOperacion(null)}
+                  disabled={closing}
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="button"
+                  className="btn-danger"
+                  onClick={handleCloseQuote}
+                  disabled={closing}
+                >
+                  {closing ? 'Cerrando...' : 'Cerrar cotización'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
     </AppShell>
   );

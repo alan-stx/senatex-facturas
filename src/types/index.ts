@@ -273,13 +273,16 @@ export type TipoOperacion = typeof TIPO_OPERACION_OPTIONS[number];
 /** Modo del formulario de operaciones. */
 export type FormMode = 'create' | 'edit' | 'activate';
 
-/** Estados comerciales nuevos (estado de la operación, no financiero). */
+/**
+ * Estado comercial simplificado: solo tres valores posibles en la columna
+ * `estado_operacion`. El estado de cobro va aparte (ver ESTADO_COBRO_OPTIONS).
+ *  - Cotización: todavía no aprobada.
+ *  - Vigente: aprobada / confirmada.
+ *  - Cerrada: no continúa o ya se cerró.
+ */
 export const ESTADO_COMERCIAL_OPTIONS = [
-  'Cotización enviada',
-  'En evaluación',
+  'Cotización',
   'Vigente',
-  'No aprobada',
-  'Anulada',
   'Cerrada',
 ] as const;
 
@@ -297,17 +300,29 @@ export const ESTADO_COBRO_OPTIONS = [
 export type EstadoCobro = typeof ESTADO_COBRO_OPTIONS[number];
 
 /**
- * Normaliza el estado comercial para presentación y para guardar al editar.
- * Mapea valores antiguos a los nuevos sin tocar datos históricos en carga.
+ * Normaliza el estado comercial al modelo de 3 valores
+ * (Cotización | Vigente | Cerrada). Mapea valores históricos sin tocar los
+ * datos almacenados en carga; al guardar se persiste ya normalizado.
  */
 export function normalizeEstadoComercial(value: string | undefined): string {
   const current = String(value || '').trim();
 
-  if (current === 'Propuesta enviada') return 'Cotización enviada';
-  if (current === 'Cobro parcial') return 'Vigente';
-  if (current === 'Perdida') return 'No aprobada';
+  // Vigente (incluye el histórico "Cobro parcial").
+  if (current === 'Vigente' || current === 'Cobro parcial') return 'Vigente';
 
-  return current;
+  // Cierre / no continúa (incluye estados históricos eliminados).
+  if (
+    current === 'Cerrada' ||
+    current === 'No aprobada' ||
+    current === 'No aceptada' ||
+    current === 'Anulada' ||
+    current === 'Perdida'
+  ) {
+    return 'Cerrada';
+  }
+
+  // Todo lo relacionado a cotización (y valores vacíos/desconocidos) → Cotización.
+  return 'Cotización';
 }
 
 export interface PagoProgramadoForm {
@@ -345,7 +360,7 @@ export interface Operacion {
   tiene_depositos?: boolean;
   estado_cobro?: string;
   /**
-   * Marcado por n8n en `list`: la fila histórica figura como "Cotización enviada"
+   * Marcado por n8n en `list`: la fila histórica figura como "Cotización"
    * pero ya tiene pagos o depósitos, por lo que su estado efectivo es "Vigente".
    */
   requiere_regularizacion?: boolean;

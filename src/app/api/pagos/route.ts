@@ -15,6 +15,26 @@ function buildErrorResponse(message: string, status: number) {
   return NextResponse.json(response, { status });
 }
 
+/**
+ * Parsea la respuesta de n8n de forma segura. Si el cuerpo viene vacío o no es
+ * JSON válido devuelve null en lugar de lanzar, evitando el error
+ * "Unexpected end of JSON input" que tumbaba la ruta con un 500 sin cuerpo.
+ */
+async function parseN8nJson(response: Response): Promise<Record<string, unknown> | null> {
+  const text = await response.text().catch(() => '');
+
+  if (!text.trim()) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    console.error('[pagos] Respuesta de n8n no es JSON válido:', text.slice(0, 500));
+    return null;
+  }
+}
+
 export async function GET() {
   const session = await auth();
 
@@ -73,6 +93,12 @@ export async function GET() {
       headers,
       body: JSON.stringify({
         action: 'list',
+        actor: {
+          email: session.user.email,
+          name: session.user.name || session.user.email,
+          role,
+        },
+        // Compatibilidad con versiones previas del workflow.
         requested_by: session.user.email,
         requested_by_name: session.user.name || session.user.email,
       }),
@@ -90,13 +116,17 @@ export async function GET() {
     return buildErrorResponse('Error al consultar pagos en n8n.', 502);
   }
 
-  const data = await n8nResponse.json();
+  const data = await parseN8nJson(n8nResponse);
+
+  if (!data) {
+    return buildErrorResponse('n8n devolvió una respuesta vacía o inválida al listar pagos.', 502);
+  }
 
   if (data.ok === false) {
     return NextResponse.json(
       {
         ok: false,
-        message: data.message || 'No se pudieron consultar los pagos.',
+        message: (data.message as string) || 'No se pudieron consultar los pagos.',
       },
       { status: 400 }
     );
@@ -104,7 +134,7 @@ export async function GET() {
 
   return NextResponse.json({
     ok: true,
-    message: data.message || 'Pagos obtenidos correctamente.',
+    message: (data.message as string) || 'Pagos obtenidos correctamente.',
     pagos: data.pagos || [],
   });
 }
@@ -158,6 +188,12 @@ export async function POST(request: NextRequest) {
 
   const now = new Date().toISOString();
 
+  const actor = {
+    email: session.user.email,
+    name: session.user.name || session.user.email,
+    role,
+  };
+
   const depositoData = {
     ...payload,
     monto_depositado: Number(payload.monto_depositado),
@@ -204,6 +240,7 @@ export async function POST(request: NextRequest) {
       headers,
       body: JSON.stringify({
         action: 'register_deposit',
+        actor,
         deposito: depositoData,
       }),
     });
@@ -223,15 +260,27 @@ export async function POST(request: NextRequest) {
     return buildErrorResponse('Error al registrar el depósito en n8n.', 502);
   }
 
-  const data = await n8nResponse.json();
+  const data = await parseN8nJson(n8nResponse);
+
+  if (!data) {
+    return buildErrorResponse('n8n devolvió una respuesta vacía o inválida al registrar el depósito.', 502);
+  }
 
   if (data.ok === false) {
+    // n8n marca con `forbidden` los intentos de registrar pagos de operaciones
+    // ajenas (comercial sobre operación que no le pertenece).
+    const status = data.forbidden ? 403 : 400;
+
     return NextResponse.json(
       {
         ok: false,
-        message: data.message || 'No se pudo registrar el depósito.',
+        message:
+          data.message ||
+          (data.forbidden
+            ? 'No tienes permiso para registrar este pago.'
+            : 'No se pudo registrar el depósito.'),
       },
-      { status: 400 }
+      { status }
     );
   }
 

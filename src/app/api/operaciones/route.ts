@@ -23,17 +23,139 @@ function buildErrorResponse(message: string, status: number) {
   return NextResponse.json(response, { status });
 }
 
+/**
+ * Parsea la respuesta de n8n de forma segura. Si el cuerpo viene vacío o no es
+ * JSON válido devuelve null en lugar de lanzar, evitando el error
+ * "Unexpected end of JSON input" que tumbaba la ruta con un 500 sin cuerpo.
+ */
+async function parseN8nJson(response: Response): Promise<Record<string, unknown> | null> {
+  const text = await response.text().catch(() => '');
+
+  if (!text.trim()) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    console.error('[operaciones] Respuesta de n8n no es JSON válido:', text.slice(0, 500));
+    return null;
+  }
+}
+
 function generateMockOperacionId() {
   const random = Math.floor(1000 + Math.random() * 9000);
   return `OP-${random}`;
 }
 
 /**
- * Al crear solo se aceptan dos estados comerciales: "Cotización enviada" y
- * "Vigente". Cualquier otro valor se trata como "Cotización enviada".
+ * Cierra/cancela una cotización (action = close_quote en n8n).
+ * Solo cambia estado_operacion a "Cerrada" cuando la operación está en
+ * "Cotización"; n8n valida existencia y estado y nunca crea pagos.
  */
-function coerceEstadoCreate(value: string | undefined): 'Cotización enviada' | 'Vigente' {
-  return normalizeEstadoComercial(value) === 'Vigente' ? 'Vigente' : 'Cotización enviada';
+async function closeQuote(
+  email: string,
+  name: string,
+  config: ReturnType<typeof getServerConfig>,
+  operacionId: string
+) {
+  const now = new Date().toISOString();
+  const userName = name || email;
+
+  if (!config.n8nOperacionesWebhookUrl) {
+    const mockOperacion: Operacion = {
+      operacion_id: operacionId,
+      cliente_id: '',
+      fecha_registro: now.slice(0, 10),
+      descripcion_operacion: '',
+      tipo_operacion: '',
+      tipo_empresa: '',
+      responsable: userName,
+      estado_operacion: 'Cerrada',
+      modalidad_pago: '',
+      monto_total_comprometido: 0,
+      vigencia_desde: '',
+      vigencia_hasta: '',
+      estado_general: 'Activo',
+      tiene_pagos: false,
+      tiene_depositos: false,
+      estado_cobro: 'Sin plan',
+      updated_by: email,
+      updated_by_name: userName,
+      updated_at: now,
+    };
+
+    return NextResponse.json({
+      ok: true,
+      message: 'Cotización cerrada en modo prueba.',
+      operacion: mockOperacion,
+    });
+  }
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+
+  if (config.n8nApiKey) {
+    headers['x-api-key'] = config.n8nApiKey;
+  }
+
+  let n8nResponse: Response;
+
+  try {
+    n8nResponse = await fetch(config.n8nOperacionesWebhookUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        action: 'close_quote',
+        operacion: {
+          operacion_id: operacionId,
+          updated_by: email,
+          updated_by_name: userName,
+          updated_at: now,
+        },
+      }),
+    });
+  } catch (error) {
+    console.error('[operaciones] Error de conexión con n8n close_quote:', error);
+
+    return buildErrorResponse('No se pudo conectar con n8n para cerrar la cotización.', 502);
+  }
+
+  if (!n8nResponse.ok) {
+    const errorText = await n8nResponse.text().catch(() => '');
+    console.error('[operaciones] Error n8n close_quote:', errorText);
+
+    return buildErrorResponse('Error al cerrar la cotización en n8n.', 502);
+  }
+
+  const data = await parseN8nJson(n8nResponse);
+
+  if (!data) {
+    return buildErrorResponse('n8n devolvió una respuesta vacía o inválida al cerrar la cotización.', 502);
+  }
+
+  if (data.ok === false) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: (data.message as string) || 'No se pudo cerrar la cotización.',
+      },
+      { status: 400 }
+    );
+  }
+
+  return NextResponse.json({
+    ok: true,
+    message: (data.message as string) || 'Cotización cerrada correctamente.',
+    operacion: data.operacion,
+  });
+}
+
+/**
+ * Al crear solo se aceptan dos estados comerciales: "Cotización" y "Vigente".
+ * Cualquier otro valor se trata como "Cotización".
+ */
+function coerceEstadoCreate(value: string | undefined): 'Cotización' | 'Vigente' {
+  return normalizeEstadoComercial(value) === 'Vigente' ? 'Vigente' : 'Cotización';
 }
 
 /**
@@ -124,7 +246,7 @@ export async function GET() {
         tipo_operacion: 'Contrato',
         tipo_empresa: 'Institucional',
         responsable: session.user.name || session.user.email,
-        estado_operacion: 'Cotización enviada',
+        estado_operacion: 'Cotización',
         modalidad_pago: '',
         monto_total_comprometido: 100000,
         vigencia_desde: '',
@@ -163,6 +285,12 @@ export async function GET() {
       headers,
       body: JSON.stringify({
         action: 'list',
+        actor: {
+          email: session.user.email,
+          name: session.user.name || session.user.email,
+          role,
+        },
+        // Compatibilidad con versiones previas del workflow.
         requested_by: session.user.email,
         requested_by_name: session.user.name || session.user.email,
       }),
@@ -180,11 +308,15 @@ export async function GET() {
     return buildErrorResponse('Error al consultar operaciones en n8n.', 502);
   }
 
-  const data = await n8nResponse.json();
+  const data = await parseN8nJson(n8nResponse);
+
+  if (!data) {
+    return buildErrorResponse('n8n devolvió una respuesta vacía o inválida al listar operaciones.', 502);
+  }
 
   return NextResponse.json({
     ok: true,
-    message: data.message || 'Operaciones obtenidas correctamente.',
+    message: (data.message as string) || 'Operaciones obtenidas correctamente.',
     operaciones: data.operaciones || [],
   });
 }
@@ -220,7 +352,7 @@ export async function POST(request: NextRequest) {
     return buildErrorResponse('La descripción de la operación es obligatoria.', 400);
   }
 
-  // Solo se permite crear como "Cotización enviada" o "Vigente".
+  // Solo se permite crear como "Cotización" o "Vigente".
   const estado = coerceEstadoCreate(payload.estado_operacion);
 
   let pagosProgramados: PagoProgramadoForm[] = [];
@@ -245,11 +377,18 @@ export async function POST(request: NextRequest) {
   }
 
   const now = new Date().toISOString();
+  const userName = session.user.name || session.user.email;
+
+  // La propiedad de la operación se ancla en la sesión autenticada. Se IGNORA
+  // cualquier responsable / created_by / created_by_name enviado por el
+  // navegador: se fijan siempre con el usuario real (admin y comercial).
+  const responsable = userName;
 
   const operacionData = {
     ...payload,
     descripcion_operacion: payload.descripcion_operacion.trim(),
     estado_operacion: estado,
+    responsable,
     // La modalidad real se selecciona al registrar el pago (módulo Pagos).
     modalidad_pago: '',
     vigencia_desde: vigenciaDesde,
@@ -261,7 +400,7 @@ export async function POST(request: NextRequest) {
     estado_general: payload.estado_general || 'Activo',
     pagos_programados: pagosProgramados,
     created_by: session.user.email,
-    created_by_name: session.user.name || session.user.email,
+    created_by_name: userName,
     created_at: now,
   };
 
@@ -333,13 +472,17 @@ export async function POST(request: NextRequest) {
     return buildErrorResponse('Error al guardar la operación en n8n.', 502);
   }
 
-  const data = await n8nResponse.json();
+  const data = await parseN8nJson(n8nResponse);
+
+  if (!data) {
+    return buildErrorResponse('n8n devolvió una respuesta vacía o inválida al registrar la operación.', 502);
+  }
 
   if (data.ok === false) {
     return NextResponse.json(
       {
         ok: false,
-        message: data.message || 'No se pudo registrar la operación.',
+        message: (data.message as string) || 'No se pudo registrar la operación.',
       },
       { status: 400 }
     );
@@ -347,7 +490,7 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    message: data.message || 'Operación registrada correctamente.',
+    message: (data.message as string) || 'Operación registrada correctamente.',
     operacion: data.operacion,
   });
 }
@@ -471,13 +614,17 @@ export async function PUT(request: NextRequest) {
     return buildErrorResponse('Error al actualizar la operación en n8n.', 502);
   }
 
-  const data = await n8nResponse.json();
+  const data = await parseN8nJson(n8nResponse);
+
+  if (!data) {
+    return buildErrorResponse('n8n devolvió una respuesta vacía o inválida al actualizar la operación.', 502);
+  }
 
   if (data.ok === false) {
     return NextResponse.json(
       {
         ok: false,
-        message: data.message || 'No se pudo actualizar la operación.',
+        message: (data.message as string) || 'No se pudo actualizar la operación.',
       },
       { status: 400 }
     );
@@ -485,7 +632,7 @@ export async function PUT(request: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    message: data.message || 'Operación actualizada correctamente.',
+    message: (data.message as string) || 'Operación actualizada correctamente.',
     operacion: data.operacion,
   });
 }
@@ -510,15 +657,34 @@ export async function PATCH(request: NextRequest) {
 
   const config = getServerConfig();
 
-  let payload: OperacionActivarPayload;
+  let body: Record<string, unknown>;
 
   try {
-    payload = await request.json();
+    body = await request.json();
   } catch {
     return buildErrorResponse('El cuerpo de la solicitud no es un JSON válido.', 400);
   }
 
-  if (!payload.operacion_id) {
+  const operacionId = String(body.operacion_id || '').trim();
+
+  // Cerrar/cancelar cotización: no crea pagos, solo pasa a "Cerrada".
+  if (body.action === 'close_quote') {
+    if (!operacionId) {
+      return buildErrorResponse('Falta el identificador de la operación a cerrar.', 400);
+    }
+
+    return closeQuote(
+      session.user.email,
+      session.user.name || session.user.email,
+      config,
+      operacionId
+    );
+  }
+
+  // Resto: aprobar/activar cotización (comportamiento previo).
+  const payload = body as unknown as OperacionActivarPayload;
+
+  if (!operacionId) {
     return buildErrorResponse('Falta el identificador de la operación a activar.', 400);
   }
 
@@ -613,13 +779,17 @@ export async function PATCH(request: NextRequest) {
     return buildErrorResponse('Error al activar la operación en n8n.', 502);
   }
 
-  const data = await n8nResponse.json();
+  const data = await parseN8nJson(n8nResponse);
+
+  if (!data) {
+    return buildErrorResponse('n8n devolvió una respuesta vacía o inválida al activar la operación.', 502);
+  }
 
   if (data.ok === false) {
     return NextResponse.json(
       {
         ok: false,
-        message: data.message || 'No se pudo activar la operación.',
+        message: (data.message as string) || 'No se pudo activar la operación.',
       },
       { status: 400 }
     );
@@ -627,7 +797,7 @@ export async function PATCH(request: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    message: data.message || 'Operación activada correctamente.',
+    message: (data.message as string) || 'Operación activada correctamente.',
     operacion: data.operacion,
   });
 }

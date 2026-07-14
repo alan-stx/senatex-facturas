@@ -20,7 +20,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $json.body || $json || {};\n\nreturn [\n  {\n    json: {\n      action: String(body.action || '').trim(),\n      requested_by: body.requested_by || '',\n      requested_by_name: body.requested_by_name || '',\n      operacion: body.operacion || {},\n      pagos_programados: body.pagos_programados || [],\n    },\n  },\n];"
+        "jsCode": "const body = $json.body || $json || {};\n\nreturn [\n  {\n    json: {\n      action: String(body.action || '').trim(),\n      requested_by: body.requested_by || '',\n      requested_by_name: body.requested_by_name || '',\n      actor: body.actor || {},\n      operacion: body.operacion || {},\n      pagos_programados: body.pagos_programados || [],\n    },\n  },\n];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -125,10 +125,35 @@
                 ],
                 "combinator": "and"
               }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "a8e1d2c3-0000-4f00-9000-000000000003",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "close_quote",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
             }
           ]
         },
-        "options": {}
+        "options": {
+          "fallbackOutput": "extra"
+        }
       },
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.4,
@@ -138,6 +163,21 @@
       ],
       "id": "b14bd846-c407-454e-b8a0-f6f2f3f2cb2c",
       "name": "Switch - Action"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: false, message: 'Acción no reconocida. Usa action=list, create, update o activate.', operaciones: [], action: ($json.action || ($json.body && $json.body.action) || '') } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        624,
+        320
+      ],
+      "id": "fbop0001-0000-4000-9000-000000000001",
+      "name": "Respond - Fallback"
     },
     {
       "parameters": {
@@ -269,7 +309,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function norm(v) { return String(v == null ? '' : v).trim(); }\nfunction toNumber(value) {\n  let s = String(value == null ? '' : value);\n  s = s.split('Bs.').join('').split('Bs').join('').split(' ').join('').split(',').join('');\n  const n = Number(s);\n  return Number.isFinite(n) ? n : 0;\n}\n\nconst operaciones = $('Get row(s) - Operaciones').all().map(i => i.json).filter(r => r.operacion_id || r.cliente_id || r.descripcion_operacion);\n\nconst pagosMap = {};\nfor (const it of $('Get row(s) - Pagos List').all()) {\n  const r = it.json;\n  if (r && r.pago_id && !pagosMap[r.pago_id]) pagosMap[r.pago_id] = r;\n}\nconst pagos = Object.keys(pagosMap).map(k => pagosMap[k]);\n\nconst depositosMap = {};\nfor (const it of $('Get row(s) - Depositos List').all()) {\n  const r = it.json;\n  if (r && r.deposito_id && !depositosMap[r.deposito_id]) depositosMap[r.deposito_id] = r;\n}\nconst depositos = Object.keys(depositosMap).map(k => depositosMap[k]);\n\nconst pagosByOp = {};\nfor (const p of pagos) {\n  const id = norm(p.operacion_id);\n  if (!id) continue;\n  if (!pagosByOp[id]) pagosByOp[id] = [];\n  pagosByOp[id].push(p);\n}\n\nconst depositoOps = {};\nfor (const d of depositos) {\n  const id = norm(d.operacion_id);\n  if (id) depositoOps[id] = true;\n}\n\nconst today = new Date();\ntoday.setHours(0, 0, 0, 0);\n\nfunction estadoCobro(opPagos) {\n  if (!opPagos || !opPagos.length) return 'Sin plan';\n  let totalProg = 0;\n  let totalPag = 0;\n  let vencido = false;\n  for (const p of opPagos) {\n    const prog = toNumber(p.monto_programado);\n    const pag = toNumber(p.monto_pagado_acumulado);\n    const saldo = toNumber(p.saldo_pago);\n    totalProg += prog;\n    totalPag += pag;\n    const estado = norm(p.estado_pago);\n    const pendiente = saldo > 0 && estado !== 'Pagado';\n    if (pendiente && p.fecha_programada) {\n      const due = new Date(String(p.fecha_programada) + 'T00:00:00');\n      if (!isNaN(due.getTime()) && due < today) vencido = true;\n    }\n  }\n  if (vencido) return 'Vencido';\n  if (totalPag <= 0) return 'Pendiente';\n  if (totalProg > 0 && totalPag >= totalProg - 0.05) return 'Pagado';\n  return 'Cobro parcial';\n}\n\nfunction normalizeEstado(value) {\n  const current = String(value == null ? '' : value).trim();\n  if (current === 'Propuesta enviada') return 'Cotización enviada';\n  if (current === 'Cobro parcial') return 'Vigente';\n  if (current === 'Perdida') return 'No aprobada';\n  return current;\n}\n\nconst enriched = operaciones.map(op => {\n  const id = norm(op.operacion_id);\n  const opPagos = pagosByOp[id] || [];\n  const tienePagos = opPagos.length > 0;\n  const tieneDepositos = depositoOps[id] === true;\n  const estadoNorm = normalizeEstado(op.estado_operacion);\n  let estadoEfectivo = estadoNorm;\n  let requiereRegularizacion = false;\n  if ((tienePagos || tieneDepositos) && (estadoNorm === 'Cotización enviada' || estadoNorm === '')) {\n    estadoEfectivo = 'Vigente';\n    requiereRegularizacion = true;\n  }\n  return Object.assign({}, op, {\n    estado_operacion: estadoEfectivo,\n    tiene_pagos: tienePagos,\n    tiene_depositos: tieneDepositos,\n    estado_cobro: estadoCobro(opPagos),\n    requiere_regularizacion: requiereRegularizacion,\n  });\n});\n\nreturn [{ json: { ok: true, message: 'Operaciones obtenidas correctamente.', operaciones: enriched } }];"
+        "jsCode": "function norm(v) { return String(v == null ? '' : v).trim(); }\nfunction toNumber(value) {\n  let s = String(value == null ? '' : value);\n  s = s.split('Bs.').join('').split('Bs').join('').split(' ').join('').split(',').join('');\n  const n = Number(s);\n  return Number.isFinite(n) ? n : 0;\n}\n\nconst operaciones = $('Get row(s) - Operaciones').all().map(i => i.json).filter(r => r.operacion_id || r.cliente_id || r.descripcion_operacion);\n\nconst pagosMap = {};\nfor (const it of $('Get row(s) - Pagos List').all()) {\n  const r = it.json;\n  if (r && r.pago_id && !pagosMap[r.pago_id]) pagosMap[r.pago_id] = r;\n}\nconst pagos = Object.keys(pagosMap).map(k => pagosMap[k]);\n\nconst depositosMap = {};\nfor (const it of $('Get row(s) - Depositos List').all()) {\n  const r = it.json;\n  if (r && r.deposito_id && !depositosMap[r.deposito_id]) depositosMap[r.deposito_id] = r;\n}\nconst depositos = Object.keys(depositosMap).map(k => depositosMap[k]);\n\nconst pagosByOp = {};\nfor (const p of pagos) {\n  const id = norm(p.operacion_id);\n  if (!id) continue;\n  if (!pagosByOp[id]) pagosByOp[id] = [];\n  pagosByOp[id].push(p);\n}\n\nconst depositoOps = {};\nfor (const d of depositos) {\n  const id = norm(d.operacion_id);\n  if (id) depositoOps[id] = true;\n}\n\nconst today = new Date();\ntoday.setHours(0, 0, 0, 0);\n\nfunction estadoCobro(opPagos) {\n  if (!opPagos || !opPagos.length) return 'Sin plan';\n  let totalProg = 0;\n  let totalPag = 0;\n  let vencido = false;\n  for (const p of opPagos) {\n    const prog = toNumber(p.monto_programado);\n    const pag = toNumber(p.monto_pagado_acumulado);\n    const saldo = toNumber(p.saldo_pago);\n    totalProg += prog;\n    totalPag += pag;\n    const estado = norm(p.estado_pago);\n    const pendiente = saldo > 0 && estado !== 'Pagado';\n    if (pendiente && p.fecha_programada) {\n      const due = new Date(String(p.fecha_programada) + 'T00:00:00');\n      if (!isNaN(due.getTime()) && due < today) vencido = true;\n    }\n  }\n  if (vencido) return 'Vencido';\n  if (totalPag <= 0) return 'Pendiente';\n  if (totalProg > 0 && totalPag >= totalProg - 0.05) return 'Pagado';\n  return 'Cobro parcial';\n}\n\nfunction normalizeEstado(value) {\n  const current = String(value == null ? '' : value).trim();\n  if (current === 'Vigente' || current === 'Cobro parcial') return 'Vigente';\n  if (current === 'Cerrada' || current === 'No aprobada' || current === 'No aceptada' || current === 'Anulada' || current === 'Perdida') return 'Cerrada';\n  return 'Cotización';\n}\n\nconst enriched = operaciones.map(op => {\n  const id = norm(op.operacion_id);\n  const opPagos = pagosByOp[id] || [];\n  const tienePagos = opPagos.length > 0;\n  const tieneDepositos = depositoOps[id] === true;\n  const estadoNorm = normalizeEstado(op.estado_operacion);\n  let estadoEfectivo = estadoNorm;\n  let requiereRegularizacion = false;\n  if ((tienePagos || tieneDepositos) && estadoNorm === 'Cotización') {\n    estadoEfectivo = 'Vigente';\n    requiereRegularizacion = true;\n  }\n  return Object.assign({}, op, {\n    estado_operacion: estadoEfectivo,\n    tiene_pagos: tienePagos,\n    tiene_depositos: tieneDepositos,\n    estado_cobro: estadoCobro(opPagos),\n    requiere_regularizacion: requiereRegularizacion,\n  });\n});\n\nconst actor = $('Code - Normalize Action').first().json.actor || {};\nconst role = String(actor.role || '').trim();\nconst actorEmail = String(actor.email || '').trim().toLowerCase();\nconst actorName = String(actor.name || '').trim().toLowerCase();\n\nlet visibles = enriched;\nif (role !== 'admin') {\n  visibles = enriched.filter(function (op) {\n    const cb = String(op.created_by || '').trim().toLowerCase();\n    if (cb) return cb === actorEmail;\n    return String(op.responsable || '').trim().toLowerCase() === actorName;\n  });\n}\n\nreturn [{ json: { ok: true, message: 'Operaciones obtenidas correctamente.', operaciones: visibles } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -365,7 +405,41 @@
     },
     {
       "parameters": {
-        "jsCode": "const payload = $('Code - Normalize Action').first().json;\n\nconst operacion = payload.operacion || {};\nconst pagosInput = payload.pagos_programados || [];\n\nconst operacionesRows = $('Get row(s) - Operaciones Create')\n  .all()\n  .map(item => item.json)\n  .filter(row => row.operacion_id);\n\nconst pagosRows = $('Get row(s) - Pagos Create')\n  .all()\n  .map(item => item.json)\n  .filter(row => row.pago_id);\n\nfunction nextId(rows, field, prefix) {\n  let max = 0;\n  const pre = prefix + '-';\n  for (const row of rows) {\n    const value = String(row[field] || '');\n    if (value.indexOf(pre) === 0) {\n      const number = parseInt(value.slice(pre.length), 10);\n      if (Number.isFinite(number) && number > max) max = number;\n    }\n  }\n  return prefix + '-' + String(max + 1).padStart(4, '0');\n}\n\nfunction toNumber(value) {\n  const num = Number(value || 0);\n  return Number.isFinite(num) ? num : 0;\n}\n\nfunction normalizeEstado(value) {\n  const current = String(value || '').trim();\n  if (current === 'Propuesta enviada') return 'Cotización enviada';\n  if (current === 'Cobro parcial') return 'Vigente';\n  if (current === 'Perdida') return 'No aprobada';\n  return current;\n}\n\nif (!operacion.cliente_id) {\n  return [{ json: { ok: false, message: 'Debe seleccionar un cliente.' } }];\n}\n\nif (!String(operacion.descripcion_operacion || '').trim()) {\n  return [{ json: { ok: false, message: 'La descripción de la operación es obligatoria.' } }];\n}\n\nconst estado = normalizeEstado(operacion.estado_operacion);\nconst estadoCreate = estado === 'Vigente' ? 'Vigente' : 'Cotización enviada';\nconst esVigente = estadoCreate === 'Vigente';\nconst montoTotal = toNumber(operacion.monto_total_comprometido);\n\nlet pagosValidos = [];\n\nif (esVigente) {\n  if (!montoTotal || montoTotal <= 0) {\n    return [{ json: { ok: false, message: 'El monto debe ser mayor a 0 para una operación vigente.' } }];\n  }\n  if (!pagosInput.length) {\n    return [{ json: { ok: false, message: 'Debe existir al menos un pago programado para una operación vigente.' } }];\n  }\n  const totalPorcentaje = pagosInput.reduce((sum, p) => sum + toNumber(p.porcentaje_programado), 0);\n  if (Math.abs(totalPorcentaje - 100) > 0.01) {\n    return [{ json: { ok: false, message: 'La suma de porcentajes del plan de pagos debe ser 100%.' } }];\n  }\n  const totalPagos = pagosInput.reduce((sum, p) => sum + toNumber(p.monto_programado), 0);\n  if (Math.abs(totalPagos - montoTotal) > 0.05) {\n    return [{ json: { ok: false, message: 'La suma de montos programados debe igualar el monto total.' } }];\n  }\n  pagosValidos = pagosInput;\n}\n\nconst operacionId = nextId(operacionesRows, 'operacion_id', 'OP');\n\nlet pagoMax = 0;\nfor (const row of pagosRows) {\n  const value = String(row.pago_id || '');\n  if (value.indexOf('PAG-') === 0) {\n    const number = parseInt(value.slice(4), 10);\n    if (Number.isFinite(number) && number > pagoMax) pagoMax = number;\n  }\n}\n\nconst preparedOperacion = {\n  operacion_id: operacionId,\n  cliente_id: operacion.cliente_id || '',\n  fecha_registro: operacion.fecha_registro || new Date().toISOString().slice(0, 10),\n  descripcion_operacion: String(operacion.descripcion_operacion || '').trim(),\n  cantidad: operacion.cantidad || '',\n  tipo_operacion: operacion.tipo_operacion || '',\n  tipo_empresa: operacion.tipo_empresa || '',\n  responsable: operacion.responsable || '',\n  estado_operacion: estadoCreate,\n  nivel_certeza: operacion.nivel_certeza || '',\n  probabilidad: operacion.probabilidad || '',\n  modalidad_pago: '',\n  monto_total_comprometido: operacion.monto_total_comprometido || '',\n  monto_total_ponderado: operacion.monto_total_ponderado || '',\n  vigencia_desde: operacion.vigencia_desde || '',\n  vigencia_hasta: operacion.vigencia_hasta || '',\n  proximo_hito: '',\n  fecha_proximo_hito: '',\n  observaciones: operacion.observaciones || '',\n  estado_general: operacion.estado_general || 'Activo',\n  created_by: operacion.created_by || '',\n  created_by_name: operacion.created_by_name || '',\n  created_at: operacion.created_at || new Date().toISOString(),\n  updated_by: '',\n  updated_by_name: '',\n  updated_at: '',\n};\n\nconst pagosProgramados = pagosValidos.map((pago, index) => {\n  pagoMax += 1;\n  const montoProgramado = toNumber(pago.monto_programado);\n  return {\n    pago_id: 'PAG-' + String(pagoMax).padStart(4, '0'),\n    operacion_id: operacionId,\n    cliente_id: operacion.cliente_id || '',\n    numero_pago: pago.numero_pago || index + 1,\n    concepto_pago: pago.concepto_pago || ('Pago ' + (index + 1)),\n    porcentaje_programado: pago.porcentaje_programado || '',\n    monto_programado: montoProgramado,\n    fecha_programada: pago.fecha_programada || '',\n    estado_pago: pago.estado_pago || 'Pendiente',\n    monto_pagado_acumulado: 0,\n    saldo_pago: montoProgramado,\n    fecha_ultimo_pago: '',\n    modalidad_pago: '',\n    observaciones: '',\n    created_by: operacion.created_by || '',\n    created_by_name: operacion.created_by_name || '',\n    created_at: operacion.created_at || new Date().toISOString(),\n    updated_by: '',\n    updated_by_name: '',\n    updated_at: '',\n  };\n});\n\nreturn [{\n  json: {\n    ok: true,\n    message: 'Operación preparada correctamente.',\n    operacion: preparedOperacion,\n    pagos_programados: pagosProgramados,\n  },\n}];"
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Clientes",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        832,
+        240
+      ],
+      "id": "f1a00020-0000-4000-9000-000000000020",
+      "name": "Get row(s) - Clientes Create",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $('Code - Normalize Action').first().json;\n\nconst operacion = payload.operacion || {};\nconst pagosInput = payload.pagos_programados || [];\n\nconst operacionesRows = $('Get row(s) - Operaciones Create')\n  .all()\n  .map(item => item.json)\n  .filter(row => row.operacion_id);\n\nconst pagosRows = $('Get row(s) - Pagos Create')\n  .all()\n  .map(item => item.json)\n  .filter(row => row.pago_id);\n\nconst clientesRows = $('Get row(s) - Clientes Create')\n  .all()\n  .map(item => item.json)\n  .filter(row => row.cliente_id);\n\nfunction nextId(rows, field, prefix) {\n  let max = 0;\n  const pre = prefix + '-';\n  for (const row of rows) {\n    const value = String(row[field] || '');\n    if (value.indexOf(pre) === 0) {\n      const number = parseInt(value.slice(pre.length), 10);\n      if (Number.isFinite(number) && number > max) max = number;\n    }\n  }\n  return prefix + '-' + String(max + 1).padStart(4, '0');\n}\n\nfunction toNumber(value) {\n  const num = Number(value || 0);\n  return Number.isFinite(num) ? num : 0;\n}\n\nfunction normalizeEstado(value) {\n  const current = String(value || '').trim();\n  if (current === 'Vigente' || current === 'Cobro parcial') return 'Vigente';\n  if (current === 'Cerrada' || current === 'No aprobada' || current === 'No aceptada' || current === 'Anulada' || current === 'Perdida') return 'Cerrada';\n  return 'Cotización';\n}\n\nif (!operacion.cliente_id) {\n  return [{ json: { ok: false, message: 'Debe seleccionar un cliente.' } }];\n}\n\nconst clienteRow = clientesRows.find(c => String(c.cliente_id || '').trim() === String(operacion.cliente_id || '').trim());\nif (!clienteRow) {\n  return [{ json: { ok: false, message: 'El cliente seleccionado no existe.' } }];\n}\nconst tipoEmpresa = String(clienteRow.tipo_cliente || '').trim();\n\nif (!String(operacion.descripcion_operacion || '').trim()) {\n  return [{ json: { ok: false, message: 'La descripción de la operación es obligatoria.' } }];\n}\n\nconst estado = normalizeEstado(operacion.estado_operacion);\nconst estadoCreate = estado === 'Vigente' ? 'Vigente' : 'Cotización';\nconst esVigente = estadoCreate === 'Vigente';\nconst montoTotal = toNumber(operacion.monto_total_comprometido);\n\nlet pagosValidos = [];\n\nif (esVigente) {\n  if (!montoTotal || montoTotal <= 0) {\n    return [{ json: { ok: false, message: 'El monto debe ser mayor a 0 para una operación vigente.' } }];\n  }\n  if (!pagosInput.length) {\n    return [{ json: { ok: false, message: 'Debe existir al menos un pago programado para una operación vigente.' } }];\n  }\n  const totalPorcentaje = pagosInput.reduce((sum, p) => sum + toNumber(p.porcentaje_programado), 0);\n  if (Math.abs(totalPorcentaje - 100) > 0.01) {\n    return [{ json: { ok: false, message: 'La suma de porcentajes del plan de pagos debe ser 100%.' } }];\n  }\n  const totalPagos = pagosInput.reduce((sum, p) => sum + toNumber(p.monto_programado), 0);\n  if (Math.abs(totalPagos - montoTotal) > 0.05) {\n    return [{ json: { ok: false, message: 'La suma de montos programados debe igualar el monto total.' } }];\n  }\n  pagosValidos = pagosInput;\n}\n\nconst operacionId = nextId(operacionesRows, 'operacion_id', 'OP');\n\nlet pagoMax = 0;\nfor (const row of pagosRows) {\n  const value = String(row.pago_id || '');\n  if (value.indexOf('PAG-') === 0) {\n    const number = parseInt(value.slice(4), 10);\n    if (Number.isFinite(number) && number > pagoMax) pagoMax = number;\n  }\n}\n\nconst preparedOperacion = {\n  operacion_id: operacionId,\n  cliente_id: operacion.cliente_id || '',\n  fecha_registro: operacion.fecha_registro || new Date().toISOString().slice(0, 10),\n  descripcion_operacion: String(operacion.descripcion_operacion || '').trim(),\n  cantidad: operacion.cantidad || '',\n  tipo_operacion: operacion.tipo_operacion || '',\n  tipo_empresa: tipoEmpresa,\n  responsable: operacion.responsable || '',\n  estado_operacion: estadoCreate,\n  nivel_certeza: operacion.nivel_certeza || '',\n  probabilidad: operacion.probabilidad || '',\n  modalidad_pago: '',\n  monto_total_comprometido: operacion.monto_total_comprometido || '',\n  monto_total_ponderado: operacion.monto_total_ponderado || '',\n  vigencia_desde: operacion.vigencia_desde || '',\n  vigencia_hasta: operacion.vigencia_hasta || '',\n  proximo_hito: '',\n  fecha_proximo_hito: '',\n  observaciones: operacion.observaciones || '',\n  estado_general: operacion.estado_general || 'Activo',\n  created_by: operacion.created_by || '',\n  created_by_name: operacion.created_by_name || '',\n  created_at: operacion.created_at || new Date().toISOString(),\n  updated_by: '',\n  updated_by_name: '',\n  updated_at: '',\n};\n\nconst pagosProgramados = pagosValidos.map((pago, index) => {\n  pagoMax += 1;\n  const montoProgramado = toNumber(pago.monto_programado);\n  return {\n    pago_id: 'PAG-' + String(pagoMax).padStart(4, '0'),\n    operacion_id: operacionId,\n    cliente_id: operacion.cliente_id || '',\n    numero_pago: pago.numero_pago || index + 1,\n    concepto_pago: pago.concepto_pago || ('Pago ' + (index + 1)),\n    porcentaje_programado: pago.porcentaje_programado || '',\n    monto_programado: montoProgramado,\n    fecha_programada: pago.fecha_programada || '',\n    estado_pago: pago.estado_pago || 'Pendiente',\n    monto_pagado_acumulado: 0,\n    saldo_pago: montoProgramado,\n    fecha_ultimo_pago: '',\n    modalidad_pago: '',\n    observaciones: '',\n    created_by: operacion.created_by || '',\n    created_by_name: operacion.created_by_name || '',\n    created_at: operacion.created_at || new Date().toISOString(),\n    updated_by: '',\n    updated_by_name: '',\n    updated_at: '',\n  };\n});\n\nreturn [{\n  json: {\n    ok: true,\n    message: 'Operación preparada correctamente.',\n    operacion: preparedOperacion,\n    pagos_programados: pagosProgramados,\n  },\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1164,7 +1238,41 @@
     },
     {
       "parameters": {
-        "jsCode": "const payload = $('Code - Normalize Action').first().json;\nconst operacion = payload.operacion || {};\nconst pagosInput = payload.pagos_programados || [];\n\nfunction norm(v) { return String(v == null ? '' : v).trim(); }\n\nfunction toNumber(value) {\n  let s = String(value == null ? '' : value);\n  s = s.split('Bs.').join('').split('Bs').join('').split(' ').join('').split(',').join('');\n  const n = Number(s);\n  return Number.isFinite(n) ? n : 0;\n}\n\nfunction normalizeEstado(value) {\n  const current = norm(value);\n  if (current === 'Propuesta enviada') return 'Cotización enviada';\n  if (current === 'Cobro parcial') return 'Vigente';\n  if (current === 'Perdida') return 'No aprobada';\n  return current;\n}\n\nconst operacionesRows = $('Get row(s) - Operaciones Update').all().map(i => i.json).filter(r => r.operacion_id);\nconst pagosRows = $('Get row(s) - Pagos Update').all().map(i => i.json).filter(r => r.pago_id);\nconst depositosRows = $('Get row(s) - Depositos Update').all().map(i => i.json).filter(r => r.deposito_id);\n\nconst operacionId = norm(operacion.operacion_id);\nif (!operacionId) {\n  return [{ json: { ok: false, message: 'Falta el identificador de la operación.' } }];\n}\n\nconst targetRow = operacionesRows.find(r => norm(r.operacion_id) === operacionId);\nif (!targetRow) {\n  return [{ json: { ok: false, message: 'No se encontró la operación a actualizar.' } }];\n}\n\nconst rowNumber = targetRow.row_number || targetRow.rowNumber || targetRow.__rowNumber || '';\n\nconst seenPagos = {};\nlet tienePagos = false;\nfor (const r of pagosRows) {\n  if (norm(r.operacion_id) === operacionId) {\n    const pid = norm(r.pago_id);\n    if (pid && !seenPagos[pid]) { seenPagos[pid] = true; tienePagos = true; }\n  }\n}\n\nconst seenDepositos = {};\nlet tieneDepositos = false;\nfor (const r of depositosRows) {\n  if (norm(r.operacion_id) === operacionId) {\n    const did = norm(r.deposito_id);\n    if (did && !seenDepositos[did]) { seenDepositos[did] = true; tieneDepositos = true; }\n  }\n}\n\nconst estadoNuevo = normalizeEstado(operacion.estado_operacion);\n\nconst montoNuevo = toNumber(operacion.monto_total_comprometido);\nconst montoActual = toNumber(targetRow.monto_total_comprometido);\n\nif (tieneDepositos && Math.abs(montoNuevo - montoActual) > 0.05) {\n  return [{ json: { ok: false, message: 'La operación tiene depósitos registrados; no se puede modificar el monto total.' } }];\n}\n\nlet pagosToCreate = [];\n\n// PUT (update) nunca crea pagos: el plan se crea al aprobar la cotización (activate).\nif (false) {\n  if (!montoNuevo || montoNuevo <= 0) {\n    return [{ json: { ok: false, message: 'El monto debe ser mayor a 0 para una operación vigente.' } }];\n  }\n  if (!pagosInput.length) {\n    return [{ json: { ok: false, message: 'Debe definir al menos un pago programado.' } }];\n  }\n  const totalPorcentaje = pagosInput.reduce((sum, p) => sum + toNumber(p.porcentaje_programado), 0);\n  if (Math.abs(totalPorcentaje - 100) > 0.01) {\n    return [{ json: { ok: false, message: 'La suma de porcentajes del plan de pagos debe ser 100%.' } }];\n  }\n  const totalPagos = pagosInput.reduce((sum, p) => sum + toNumber(p.monto_programado), 0);\n  if (Math.abs(totalPagos - montoNuevo) > 0.05) {\n    return [{ json: { ok: false, message: 'La suma de montos programados debe igualar el monto total.' } }];\n  }\n\n  let pagoMax = 0;\n  for (const r of pagosRows) {\n    const value = String(r.pago_id || '');\n    if (value.indexOf('PAG-') === 0) {\n      const number = parseInt(value.slice(4), 10);\n      if (Number.isFinite(number) && number > pagoMax) pagoMax = number;\n    }\n  }\n\n  pagosToCreate = pagosInput.map((pago, index) => {\n    pagoMax += 1;\n    const montoProgramado = toNumber(pago.monto_programado);\n    return {\n      pago_id: 'PAG-' + String(pagoMax).padStart(4, '0'),\n      operacion_id: operacionId,\n      cliente_id: operacion.cliente_id || targetRow.cliente_id || '',\n      numero_pago: pago.numero_pago || index + 1,\n      concepto_pago: pago.concepto_pago || ('Pago ' + (index + 1)),\n      porcentaje_programado: pago.porcentaje_programado || '',\n      monto_programado: montoProgramado,\n      fecha_programada: pago.fecha_programada || '',\n      estado_pago: pago.estado_pago || 'Pendiente',\n      monto_pagado_acumulado: 0,\n      saldo_pago: montoProgramado,\n      fecha_ultimo_pago: '',\n      modalidad_pago: operacion.modalidad_pago || '',\n      observaciones: '',\n      created_by: operacion.updated_by || operacion.created_by || '',\n      created_by_name: operacion.updated_by_name || operacion.created_by_name || '',\n      created_at: new Date().toISOString(),\n      updated_by: '',\n      updated_by_name: '',\n      updated_at: '',\n    };\n  });\n}\n\nfunction pick(newVal, oldVal) {\n  return (newVal === undefined || newVal === null || newVal === '') ? (oldVal || '') : newVal;\n}\n\nconst updatedOperacion = {\n  row_number: rowNumber,\n  operacion_id: operacionId,\n  cliente_id: operacion.cliente_id || targetRow.cliente_id || '',\n  fecha_registro: pick(operacion.fecha_registro, targetRow.fecha_registro),\n  descripcion_operacion: norm(operacion.descripcion_operacion) || targetRow.descripcion_operacion || '',\n  cantidad: pick(operacion.cantidad, targetRow.cantidad),\n  tipo_operacion: operacion.tipo_operacion || targetRow.tipo_operacion || '',\n  tipo_empresa: operacion.tipo_empresa || targetRow.tipo_empresa || '',\n  responsable: operacion.responsable || targetRow.responsable || '',\n  estado_operacion: targetRow.estado_operacion || '',\n  nivel_certeza: pick(operacion.nivel_certeza, targetRow.nivel_certeza),\n  probabilidad: pick(operacion.probabilidad, targetRow.probabilidad),\n  modalidad_pago: operacion.modalidad_pago || targetRow.modalidad_pago || '',\n  monto_total_comprometido: pick(operacion.monto_total_comprometido, targetRow.monto_total_comprometido),\n  monto_total_ponderado: pick(operacion.monto_total_ponderado, targetRow.monto_total_ponderado),\n  vigencia_desde: (operacion.vigencia_desde === undefined || operacion.vigencia_desde === null) ? (targetRow.vigencia_desde || '') : operacion.vigencia_desde,\n  vigencia_hasta: (operacion.vigencia_hasta === undefined || operacion.vigencia_hasta === null) ? (targetRow.vigencia_hasta || '') : operacion.vigencia_hasta,\n  proximo_hito: targetRow.proximo_hito || '',\n  fecha_proximo_hito: targetRow.fecha_proximo_hito || '',\n  observaciones: (operacion.observaciones === undefined || operacion.observaciones === null) ? (targetRow.observaciones || '') : operacion.observaciones,\n  estado_general: operacion.estado_general || targetRow.estado_general || 'Activo',\n  created_by: targetRow.created_by || '',\n  created_by_name: targetRow.created_by_name || '',\n  created_at: targetRow.created_at || '',\n  updated_by: operacion.updated_by || '',\n  updated_by_name: operacion.updated_by_name || '',\n  updated_at: operacion.updated_at || new Date().toISOString(),\n};\n\nreturn [{\n  json: {\n    ok: true,\n    message: pagosToCreate.length ? 'Operación actualizada y plan de pagos creado.' : 'Operación actualizada correctamente.',\n    operacion: updatedOperacion,\n    pagos_programados: pagosToCreate,\n    pagos_to_create: pagosToCreate.length > 0,\n  },\n}];"
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Clientes",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1456,
+        540
+      ],
+      "id": "f1a00021-0000-4000-9000-000000000021",
+      "name": "Get row(s) - Clientes Update",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $('Code - Normalize Action').first().json;\nconst operacion = payload.operacion || {};\nconst pagosInput = payload.pagos_programados || [];\n\nfunction norm(v) { return String(v == null ? '' : v).trim(); }\n\nfunction toNumber(value) {\n  let s = String(value == null ? '' : value);\n  s = s.split('Bs.').join('').split('Bs').join('').split(' ').join('').split(',').join('');\n  const n = Number(s);\n  return Number.isFinite(n) ? n : 0;\n}\n\nfunction normalizeEstado(value) {\n  const current = norm(value);\n  if (current === 'Vigente' || current === 'Cobro parcial') return 'Vigente';\n  if (current === 'Cerrada' || current === 'No aprobada' || current === 'No aceptada' || current === 'Anulada' || current === 'Perdida') return 'Cerrada';\n  return 'Cotización';\n}\n\nconst operacionesRows = $('Get row(s) - Operaciones Update').all().map(i => i.json).filter(r => r.operacion_id);\nconst pagosRows = $('Get row(s) - Pagos Update').all().map(i => i.json).filter(r => r.pago_id);\nconst depositosRows = $('Get row(s) - Depositos Update').all().map(i => i.json).filter(r => r.deposito_id);\nconst clientesRows = $('Get row(s) - Clientes Update').all().map(i => i.json).filter(r => r.cliente_id);\n\nconst operacionId = norm(operacion.operacion_id);\nif (!operacionId) {\n  return [{ json: { ok: false, message: 'Falta el identificador de la operación.' } }];\n}\n\nconst targetRow = operacionesRows.find(r => norm(r.operacion_id) === operacionId);\nif (!targetRow) {\n  return [{ json: { ok: false, message: 'No se encontró la operación a actualizar.' } }];\n}\n\nconst rowNumber = targetRow.row_number || targetRow.rowNumber || targetRow.__rowNumber || '';\n\nconst clienteIdEfectivo = String(operacion.cliente_id || targetRow.cliente_id || '').trim();\nconst clienteRow = clientesRows.find(c => String(c.cliente_id || '').trim() === clienteIdEfectivo);\nif (!clienteRow) {\n  return [{ json: { ok: false, message: 'El cliente seleccionado no existe.' } }];\n}\nconst tipoEmpresa = String(clienteRow.tipo_cliente || '').trim();\n\nconst seenPagos = {};\nlet tienePagos = false;\nfor (const r of pagosRows) {\n  if (norm(r.operacion_id) === operacionId) {\n    const pid = norm(r.pago_id);\n    if (pid && !seenPagos[pid]) { seenPagos[pid] = true; tienePagos = true; }\n  }\n}\n\nconst seenDepositos = {};\nlet tieneDepositos = false;\nfor (const r of depositosRows) {\n  if (norm(r.operacion_id) === operacionId) {\n    const did = norm(r.deposito_id);\n    if (did && !seenDepositos[did]) { seenDepositos[did] = true; tieneDepositos = true; }\n  }\n}\n\nconst estadoNuevo = normalizeEstado(operacion.estado_operacion);\n\nconst montoNuevo = toNumber(operacion.monto_total_comprometido);\nconst montoActual = toNumber(targetRow.monto_total_comprometido);\n\nif (tieneDepositos && Math.abs(montoNuevo - montoActual) > 0.05) {\n  return [{ json: { ok: false, message: 'La operación tiene depósitos registrados; no se puede modificar el monto total.' } }];\n}\n\nlet pagosToCreate = [];\n\n// PUT (update) nunca crea pagos: el plan se crea al aprobar la cotización (activate).\nif (false) {\n  if (!montoNuevo || montoNuevo <= 0) {\n    return [{ json: { ok: false, message: 'El monto debe ser mayor a 0 para una operación vigente.' } }];\n  }\n  if (!pagosInput.length) {\n    return [{ json: { ok: false, message: 'Debe definir al menos un pago programado.' } }];\n  }\n  const totalPorcentaje = pagosInput.reduce((sum, p) => sum + toNumber(p.porcentaje_programado), 0);\n  if (Math.abs(totalPorcentaje - 100) > 0.01) {\n    return [{ json: { ok: false, message: 'La suma de porcentajes del plan de pagos debe ser 100%.' } }];\n  }\n  const totalPagos = pagosInput.reduce((sum, p) => sum + toNumber(p.monto_programado), 0);\n  if (Math.abs(totalPagos - montoNuevo) > 0.05) {\n    return [{ json: { ok: false, message: 'La suma de montos programados debe igualar el monto total.' } }];\n  }\n\n  let pagoMax = 0;\n  for (const r of pagosRows) {\n    const value = String(r.pago_id || '');\n    if (value.indexOf('PAG-') === 0) {\n      const number = parseInt(value.slice(4), 10);\n      if (Number.isFinite(number) && number > pagoMax) pagoMax = number;\n    }\n  }\n\n  pagosToCreate = pagosInput.map((pago, index) => {\n    pagoMax += 1;\n    const montoProgramado = toNumber(pago.monto_programado);\n    return {\n      pago_id: 'PAG-' + String(pagoMax).padStart(4, '0'),\n      operacion_id: operacionId,\n      cliente_id: operacion.cliente_id || targetRow.cliente_id || '',\n      numero_pago: pago.numero_pago || index + 1,\n      concepto_pago: pago.concepto_pago || ('Pago ' + (index + 1)),\n      porcentaje_programado: pago.porcentaje_programado || '',\n      monto_programado: montoProgramado,\n      fecha_programada: pago.fecha_programada || '',\n      estado_pago: pago.estado_pago || 'Pendiente',\n      monto_pagado_acumulado: 0,\n      saldo_pago: montoProgramado,\n      fecha_ultimo_pago: '',\n      modalidad_pago: operacion.modalidad_pago || '',\n      observaciones: '',\n      created_by: operacion.updated_by || operacion.created_by || '',\n      created_by_name: operacion.updated_by_name || operacion.created_by_name || '',\n      created_at: new Date().toISOString(),\n      updated_by: '',\n      updated_by_name: '',\n      updated_at: '',\n    };\n  });\n}\n\nfunction pick(newVal, oldVal) {\n  return (newVal === undefined || newVal === null || newVal === '') ? (oldVal || '') : newVal;\n}\n\nconst updatedOperacion = {\n  row_number: rowNumber,\n  operacion_id: operacionId,\n  cliente_id: operacion.cliente_id || targetRow.cliente_id || '',\n  fecha_registro: pick(operacion.fecha_registro, targetRow.fecha_registro),\n  descripcion_operacion: norm(operacion.descripcion_operacion) || targetRow.descripcion_operacion || '',\n  cantidad: pick(operacion.cantidad, targetRow.cantidad),\n  tipo_operacion: operacion.tipo_operacion || targetRow.tipo_operacion || '',\n  tipo_empresa: tipoEmpresa,\n  responsable: targetRow.responsable || operacion.responsable || '',\n  estado_operacion: targetRow.estado_operacion || '',\n  nivel_certeza: pick(operacion.nivel_certeza, targetRow.nivel_certeza),\n  probabilidad: pick(operacion.probabilidad, targetRow.probabilidad),\n  modalidad_pago: operacion.modalidad_pago || targetRow.modalidad_pago || '',\n  monto_total_comprometido: pick(operacion.monto_total_comprometido, targetRow.monto_total_comprometido),\n  monto_total_ponderado: pick(operacion.monto_total_ponderado, targetRow.monto_total_ponderado),\n  vigencia_desde: (operacion.vigencia_desde === undefined || operacion.vigencia_desde === null) ? (targetRow.vigencia_desde || '') : operacion.vigencia_desde,\n  vigencia_hasta: (operacion.vigencia_hasta === undefined || operacion.vigencia_hasta === null) ? (targetRow.vigencia_hasta || '') : operacion.vigencia_hasta,\n  proximo_hito: targetRow.proximo_hito || '',\n  fecha_proximo_hito: targetRow.fecha_proximo_hito || '',\n  observaciones: (operacion.observaciones === undefined || operacion.observaciones === null) ? (targetRow.observaciones || '') : operacion.observaciones,\n  estado_general: operacion.estado_general || targetRow.estado_general || 'Activo',\n  created_by: targetRow.created_by || '',\n  created_by_name: targetRow.created_by_name || '',\n  created_at: targetRow.created_at || '',\n  updated_by: operacion.updated_by || '',\n  updated_by_name: operacion.updated_by_name || '',\n  updated_at: operacion.updated_at || new Date().toISOString(),\n};\n\nreturn [{\n  json: {\n    ok: true,\n    message: pagosToCreate.length ? 'Operación actualizada y plan de pagos creado.' : 'Operación actualizada correctamente.',\n    operacion: updatedOperacion,\n    pagos_programados: pagosToCreate,\n    pagos_to_create: pagosToCreate.length > 0,\n  },\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -2639,6 +2747,238 @@
       ],
       "id": "f2a00012-0000-4000-9000-000000000012",
       "name": "Respond - Activate OK"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1269396866,
+          "mode": "list",
+          "cachedResultName": "Operaciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=1269396866"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        624,
+        720
+      ],
+      "id": "f3b00001-0000-4000-9000-000000000001",
+      "name": "Get row(s) - Operaciones Close",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const operacion = $('Code - Normalize Action').first().json.operacion || {};\nfunction norm(v) { return String(v == null ? '' : v).trim(); }\nfunction normalizeEstado(value) {\n  const current = norm(value);\n  if (current === 'Vigente' || current === 'Cobro parcial') return 'Vigente';\n  if (current === 'Cerrada' || current === 'No aprobada' || current === 'No aceptada' || current === 'Anulada' || current === 'Perdida') return 'Cerrada';\n  return 'Cotización';\n}\n\nconst operacionId = norm(operacion.operacion_id);\nif (!operacionId) {\n  return [{ json: { ok: false, message: 'Falta el identificador de la operación a cerrar.' } }];\n}\n\nconst rows = $('Get row(s) - Operaciones Close').all().map(i => i.json).filter(r => r.operacion_id);\nconst targetRow = rows.find(r => norm(r.operacion_id) === operacionId);\nif (!targetRow) {\n  return [{ json: { ok: false, message: 'No se encontró la operación a cerrar.' } }];\n}\n\nconst estadoActual = normalizeEstado(targetRow.estado_operacion);\nif (estadoActual === 'Vigente') {\n  return [{ json: { ok: false, message: 'No se puede cerrar una operación vigente desde este botón.' } }];\n}\nif (estadoActual === 'Cerrada') {\n  return [{ json: { ok: false, message: 'La operación ya estaba cerrada.' } }];\n}\n\nconst rowNumber = targetRow.row_number || targetRow.rowNumber || targetRow.__rowNumber || '';\n\nconst updatedOperacion = {\n  row_number: rowNumber,\n  operacion_id: operacionId,\n  estado_operacion: 'Cerrada',\n  updated_by: operacion.updated_by || '',\n  updated_by_name: operacion.updated_by_name || '',\n  updated_at: operacion.updated_at || new Date().toISOString(),\n};\n\nconst operacionEnriquecida = Object.assign({}, targetRow, { estado_operacion: 'Cerrada', updated_by: updatedOperacion.updated_by, updated_by_name: updatedOperacion.updated_by_name, updated_at: updatedOperacion.updated_at });\n\nreturn [{ json: { ok: true, message: 'Cotización cerrada correctamente.', operacion: updatedOperacion, operacion_enriquecida: operacionEnriquecida } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        720
+      ],
+      "id": "f3b00002-0000-4000-9000-000000000002",
+      "name": "Code - Prepare Close Quote"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f3b00050-0000-4000-9000-000000000050",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1040,
+        720
+      ],
+      "id": "f3b00003-0000-4000-9000-000000000003",
+      "name": "Close OK?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1248,
+        840
+      ],
+      "id": "f3b00004-0000-4000-9000-000000000004",
+      "name": "Respond - Close Error"
+    },
+    {
+      "parameters": {
+        "jsCode": "const op = $('Code - Prepare Close Quote').first().json.operacion;\nreturn [{ json: op }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        660
+      ],
+      "id": "f3b00005-0000-4000-9000-000000000005",
+      "name": "Code - Emit Operacion Close"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8",
+          "mode": "list",
+          "cachedResultName": "SENATEX_Contrataciones_Proyecciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1269396866,
+          "mode": "list",
+          "cachedResultName": "Operaciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lX0iXL-rlky6LamnpgOm6AMSsA2cCr4U1eMPiWIRIK8/edit#gid=1269396866"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $json.row_number }}",
+            "operacion_id": "={{ $json.operacion_id }}",
+            "estado_operacion": "={{ $json.estado_operacion }}",
+            "updated_by": "={{ $json.updated_by }}",
+            "updated_by_name": "={{ $json.updated_by_name }}",
+            "updated_at": "={{ $json.updated_at }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "operacion_id",
+              "displayName": "operacion_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado_operacion",
+              "displayName": "estado_operacion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_by",
+              "displayName": "updated_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_by_name",
+              "displayName": "updated_by_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1456,
+        660
+      ],
+      "id": "f3b00006-0000-4000-9000-000000000006",
+      "name": "Update row - Operaciones Close",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "C2ZrTaxMwTXTxvlN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, message: 'Cotización cerrada correctamente.', operacion: $('Code - Prepare Close Quote').first().json.operacion_enriquecida } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1664,
+        660
+      ],
+      "id": "f3b00007-0000-4000-9000-000000000007",
+      "name": "Respond - Close OK"
     }
   ],
   "pinData": {},
@@ -2691,6 +3031,82 @@
         [
           {
             "node": "Get row(s) - Operaciones Activate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get row(s) - Operaciones Close",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Fallback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) - Operaciones Close": {
+      "main": [
+        [
+          {
+            "node": "Code - Prepare Close Quote",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Prepare Close Quote": {
+      "main": [
+        [
+          {
+            "node": "Close OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Close OK?": {
+      "main": [
+        [
+          {
+            "node": "Code - Emit Operacion Close",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Close Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Emit Operacion Close": {
+      "main": [
+        [
+          {
+            "node": "Update row - Operaciones Close",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row - Operaciones Close": {
+      "main": [
+        [
+          {
+            "node": "Respond - Close OK",
             "type": "main",
             "index": 0
           }
@@ -2775,6 +3191,17 @@
       ]
     },
     "Get row(s) - Pagos Create": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) - Clientes Create",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) - Clientes Create": {
       "main": [
         [
           {
@@ -2910,6 +3337,17 @@
       ]
     },
     "Get row(s) - Depositos Update": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) - Clientes Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) - Clientes Update": {
       "main": [
         [
           {

@@ -19,7 +19,6 @@ export default function ResultCard({ result, onReset }: ResultCardProps) {
   // Determinar clase y metadata según estado
   const isSuccess = status === 'processed';
   const isDuplicate = status === 'duplicate_invoice' || status === 'duplicate_file';
-  const isError = status === 'error' || status === 'processing_error';
 
   const cardClass = isSuccess
     ? 'result-card--success'

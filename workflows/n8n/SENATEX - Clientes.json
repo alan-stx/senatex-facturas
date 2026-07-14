@@ -93,7 +93,9 @@
             }
           ]
         },
-        "options": {}
+        "options": {
+          "fallbackOutput": "extra"
+        }
       },
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.4,
@@ -103,6 +105,21 @@
       ],
       "id": "27613579-d893-4339-a711-9a19ef833c91",
       "name": "Switch"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: false, message: 'Acción no reconocida. Usa action=list, create o update.', clientes: [], action: (($json.body && $json.body.action) || $json.action || '') } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        544,
+        420
+      ],
+      "id": "fbcl0001-0000-4000-9000-000000000001",
+      "name": "Respond - Fallback"
     },
     {
       "parameters": {
@@ -845,6 +862,13 @@
         [
           {
             "node": "Get clientes for update",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Fallback",
             "type": "main",
             "index": 0
           }
